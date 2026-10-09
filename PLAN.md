@@ -156,8 +156,9 @@ Property descriptions and program-end hint suppression are implemented in [#472]
 The `export` directive is implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
 Property index declaration parsing, validation and source preservation are implemented
 in [#472](https://github.com/CWBudde/go-dws/pull/472); the parent item stays open.
-Next: live property index references and setter capture order, then remaining Phase 2
-recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+Eligible ordinary class property index references and setter capture order are implemented
+in [#472](https://github.com/CWBudde/go-dws/pull/472). Next: property index use-site checks and
+remaining runtime contexts, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -453,8 +454,13 @@ punctuation in the parser before reading arguments.
   - [x] Declaration grammar/recovery, accessor passing-mode validation and AST/printer
     preservation; both complete fixture diagnostic lists pass
     ([#472](https://github.com/CWBudde/go-dws/pull/472)).
-  - [ ] Typed passing-mode metadata and live caller references through ordinary
-    named/default property access; capture setter receiver/indices before its RHS.
+  - [x] Typed passing-mode metadata and live caller references through eligible ordinary
+    class named/default properties; retain receiver/indices before the setter RHS
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Complete capture for opaque unchecked/default receivers and legal indexed
+    field writers; preserve their accessor-specific index and RHS behavior.
+  - [ ] Add selected-static-owner cast-index dispatch and bare factory receiver
+    typing; these existing receiver prerequisites are separate from reference capture.
   - [ ] Writable/type/term-boundary checks and interface/inherited/compatibility reads,
     retaining selected accessor ownership, argument order and exceptions.
   - [ ] Measure and complete the independent record declaration/runtime paths;

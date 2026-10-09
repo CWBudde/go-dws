@@ -1,5 +1,59 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Ordinary class property index references (PLAN 2.2, runtime slice)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) stores
+value/const/var modes in one immutable typed property signature. Checked class
+and independent runtime class/interface construction preserve grouped modes;
+promotion and forwarding retain the signature, and checked forwarding rejects
+mode mismatches. Missing legacy metadata keeps value semantics; an explicitly
+partial mode signature is rejected before arguments execute.
+
+Ordinary class named/default and class-meta named reads prepare original index
+expressions sequentially. A var index captures caller storage through the existing
+reference machinery; value/const indices execute once. Eligible method/expression
+setters retain their receiver, descriptor and index references before evaluating
+the RHS, then append the assigned value once. Later container rebinding preserves
+the captured slot. Original index errors and script exception state survive;
+failing capture skips later indices, RHS and setter.
+
+Ordinary class array-field and method-result assignment retain RHS-first ordering
+and capture their receiver once. Parameterless instance/class methods use the
+existing dispatcher with that captured object, preserving lexical/virtual dispatch,
+merged overload/default precedence, metaclass Self and lifecycle guards. Helper and
+namespace handling and the implicit-call completion tail remain intact. A receiver
+that supplies different objects on successive calls proves first-object storage
+identity, in addition to trace order. Bare and explicit controls preserve existing
+class-only function-pointer and checked overloaded-call boundaries.
+
+Tests through public Engine cover checked/unchecked var mutation (6/6/9), value
+copy (6/5/5), const controls, forwarded/local references, mixed modes, array/field
+capture, class/virtual/expression getters, receiver/index/RHS ordering (RAIVS/8),
+container rebinding and original exceptions. Declaration mode matrices and complete
+array_params1/2/3 compile expectations remain alongside the runtime tests. Independent
+task review and three scoped correction reviews approve the bounded implementation.
+
+The parent remains open. Semantic writable/type/term checks, interface and resolved
+inherited/compatibility references, record/helper paths and new compound var-index
+support are separate work. Opaque unchecked default receivers still lose original
+var operands on fallback. Selected-static-owner cast-index dispatch, bare factory
+receiver typing and indexed field writers are measured prerequisites, not closed
+by eligible target capture. Setter ordering is not universal for dynamic receiver
+forms. Source expectations use pinned compiler revision
+1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
+Final verification passes: `go test -race -coverprofile=.cache/phase25-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI mutation/order acceptance, complete fixture failure-set
+comparison, `just fixture-update`, `just fixture-check`, tracked Go formatting,
+`go mod tidy`, deterministic `go generate ./pkg/ast` and `git diff --check`.
+Both final reports score 1,431 passes, 583 failures and 27 skips across 2,041 fixtures;
+no CLI gains or regressions against the declaration slice. Generated Go status now
+matches the CLI's BuildScripts score of 7; the existing variable score of 8 was
+never ratcheted. Floors remain FailureScripts 328, SimpleScripts 399 and BuildScripts 7.
+Parser coverage stays 4,746/5,882 = 80.6868%; lexer stays 1,386/1,570 = 88.2803%.
+Dependency and generated visitor files remain unchanged. PLAN checks only the
+eligible ordinary runtime child and keeps broader receiver/writer prerequisites open.
+
 ## 2026-10-09 — Property index declaration modes (PLAN 2.2, first slice)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts

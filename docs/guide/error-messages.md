@@ -467,9 +467,12 @@ Accessor index types are checked before passing modes. A mismatch reports
 `Value-parameter expected`, then one incompatible-method summary at the accessor.
 The detail uses the property's parameter spelling and a zero-based index.
 Count, getter result and writer value/kind checks retain their earlier priority.
-AST and source printing preserve the groups and modes. Declaration support does
-not yet provide live caller references for `var` indices; the parent runtime
-and use-site validation work remains open.
+AST and source printing preserve the groups and modes. Ordinary class indexed
+access retains live caller storage for `var` indices and original index errors.
+Eligible method/expression setters capture receiver and indices before the RHS;
+an index exception skips the RHS and setter. Semantic use-site storage/type/term
+checks, interface/resolved reference dispatch and broader receiver/writer paths
+remain open; declaration validation alone does not cover those checks.
 
 A property `description` directive requires a string literal. If it is missing,
 `String expected` anchors at the next token and leaves that token available for

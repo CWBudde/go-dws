@@ -428,8 +428,12 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Indexed properties, including multi-index `Data[x, y: Integer]`
 - ✅ Class/interface index declarations preserve grouped `var`/`const` modes,
   validate accessor mode agreement and round-trip through source printing.
-  Live caller references for `var` indices and their use-site checks remain open;
-  independent record index parsing and helper dispatch are also incomplete.
+- ✅ Ordinary class named/default `var` indices retain live caller storage. Eligible
+  method/expression setters capture their receiver and indices before the RHS;
+  later container rebinding keeps the captured slot and index exceptions skip the RHS.
+  Use-site checks, interface and resolved inherited/compatibility reference calls,
+  opaque unchecked default receivers, cast-index dispatch and indexed field writers
+  remain open. Independent record index parsing and helper dispatch are incomplete.
 - ✅ Default properties (`obj[i]` for read and write)
 - ✅ Expression-based getters and setters, on plain and indexed properties.
   An indexed accessor expression sees the index parameters by name:
