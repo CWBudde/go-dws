@@ -1,5 +1,53 @@
 # Progress log — October 2026
 
+## 2026-10-10 — Compile-stop model (PLAN 2.1)
+
+Compile stops now follow upstream's single-pass rule: nothing after the first compiler stop is
+reported. Design and current state: [`compile-stops.md`](../architecture/compile-stops.md).
+
+**Parser.**
+- `CallExpression`, `NewExpression`, `MethodCallExpression` and inherited calls keep their node,
+  marked `Truncated`, when a stop cuts their argument list.
+- The analyzer analyzes only the completed arguments. It never resolves a truncated call or
+  checks its argument count or types.
+- A block with a missing END is truncated too, so it emits no completion hints. This mirrors
+  upstream's `HintUnusedSymbols` after `AddCompilerStop(CPE_EndOfBlockExpected)`.
+
+**Analyzer.**
+- `addCompilerStop` raises a sentinel that is caught for each top-level statement and for each
+  deferred body.
+- After a stop, the analysis context is restored, later statements are skipped, and bodies
+  declared after the stop are not analyzed.
+- These messages now stop compilation, as upstream's `AddCompilerStop` sites do:
+  - `There is no accessible member` (all 13 sites);
+  - `Unknown name` in expression, callee, `@` and qualified-unit positions;
+  - for-in `Array expected`;
+  - `has no default property`;
+  - `Record type … is not fully defined`.
+- `Unknown name` now anchors at the name rather than at the call's `(`.
+- Two upstream stops stay ordinary errors here, because fixtures show upstream continuing in
+  those contexts: `Object reference needed` and `Class method or constructor expected`.
+
+**Frontend.**
+- `type_punctuation.go` and `refineDeferredPropertyCallDiagnostics` are deleted. When a parser
+  stop and an analyzer stop share a token, the analyzer's wins.
+- The analyzer, not the frontend, decides boundary-call stops.
+- Units get the same stop cut as programs.
+
+**Tests.**
+- The former `*ReadAllChildren` tests pinned go-dws's continue-after-error behaviour. They now
+  expect upstream's single diagnostic.
+- The builtin compatibility snapshot is regenerated, because unresolved arguments now stop.
+
+**Fixtures:**
+- FailureScripts 320 → 324: `missing_parenthesis1`, `block_unfinished2`, `except_error4`,
+  `except_error5`.
+- HelpersFail 12 → 13: `strict`.
+- `BuildScripts/init_order4` also passes, but it is order-dependent, so it is not ratcheted.
+
+**Validation:** `go test ./...` passes. The `cmd/fixture-report` test needs a tmpfs `TMPDIR`
+on FUSE mounts. The `TestDWScriptFixtures` gate passes.
+
 ## 2026-10-09 — Phase 2 restructured (PLAN review)
 
 This entry records no code change. It records a review of Phase 2 from four angles:

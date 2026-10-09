@@ -56,7 +56,7 @@ Phase 6 is gated.
 - Of the 268 failing `*Fail` fixtures:
   - 107 still print a go-native sentence (1.8);
   - 96 are at distance 1;
-  - only about 3 are blocked purely by compile stops (2.1).
+  - only a handful were blocked purely by compile stops (2.1, now +6).
 
 ---
 
@@ -375,53 +375,39 @@ work, it is the parking list.
 
 ### 2.1 Compile-stop model — M
 
-Replace the five mechanisms with one model: the parser marks a truncated call, the analyzer
-genuinely stops, and the frontend makes one position cut.
+Replace the separate stop mechanisms with one model: the parser marks a truncated call, the
+analyzer genuinely stops, and the frontend makes one position cut. Design and current state:
+[`compile-stops.md`](docs/architecture/compile-stops.md).
 
-Measured yield:
-- About 3 fixtures pass outright: `missing_parenthesis1`, `HelpersFail/strict` and
-  `block_unfinished2`. `static_methods` would also match once later diagnostics are cut, but it
-  is a [known divergence](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written)
-  and is not a target.
-- About 24 more drop to distance 1, where the remaining line is a missing or wrong first stop
-  diagnostic. Examples: `case_error6`, `for_var_usage3`/`4`, `func_ptr2`, `invalid_cast3`,
-  `member_of_void1`, `method2`, `property_write5`, `const_3`.
+Measured yield so far: +6 fixtures.
+- `missing_parenthesis1`, `block_unfinished2`, `except_error4` and `except_error5` in
+  FailureScripts.
+- `HelpersFail/strict`.
+- `BuildScripts/init_order4`, which is order-dependent, so it is not ratcheted.
 
-Re-run `--classify` after each step and move the newly isolated first-diagnostic gaps into
-Phase 1/4.
+`static_methods` is not a target: its only extra line is the `{$FATAL}` stop itself (see
+[known divergences](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written)).
 
-- [ ] S Write `docs/architecture/compile-stops.md`. It should cover:
-  - The current mechanisms (sites listed above).
-  - Upstream's model: `AddCompilerStop` → `ECompileError`, with emission in pass order at
-    `FTok.HotPos`.
-  - The target design.
-  - The invariants formerly listed under 2.4. The §1.3 enum, cast, record-metatype and
-    anonymous-signature work must preserve source declaration order, routine-body insertion
-    points, speculative parser-error restoration, semantic recovery types, and true stops
-    ahead of later assignment or end-of-program diagnostics.
-- [ ] M Parser: one truncated-call carrier for every call form (`CallExpression`,
-  `NewExpression`, `MethodCallExpression`, statement-boundary calls), replacing the current
-  `nil`/`Incomplete`/`DeferredCall` split.
-  - Target fixture: `missing_parenthesis1` (`Invalid Operands` from inside a stopped call).
-  - Keep `array_index_bracket_missing1` and `constructor_invalid_param` passing.
-  - Also covers the deferred former-2.1 tails: `Default.Low(;`, intrinsic casing hints inside
-    `PrintLn(debugbreak(;`, and nonempty/EOF recovery after reintroduced-property brackets.
-- [ ] M Analyzer: real stops. Emit a stop as a sentinel recovered in `safeAnalyze`, replacing
-  the single `compileStopped` flag.
-  - Analyzer `"(" expected` stops suppress later diagnostics the way parser stops do.
-  - The end-of-program forward check follows the same rule.
-  - Target fixture: `HelpersFail/strict`.
-- [ ] S Frontend: reduce `compileParsedResult` to one stop-position cut.
-  - Delete `refineTypePunctuationDiagnostics` (message-string matching) and
-    `refineDeferredPropertyCallDiagnostics` once the carrier exists.
-  - Apply the `reachedLexerDiagnostics` cutoff on the unit-compile path
-    (`internal/frontend/units.go`) as well.
-  - The remaining `sortDiagnostics` heuristics should only order parser vs. analyzer output.
-- [ ] S Drop end-of-compilation hints positioned before a stop (`block_unfinished2`).
-  [#472](https://github.com/CWBudde/go-dws/pull/472) ships the private field/method part.
-- [ ] S Inside `begin…end`, upstream reports a follow-up diagnostic for the value left
-  unconsumed after a read-only property assignment. Indexed read-only property writes get none
-  either. Measure against `PropertyExpressionsFail/expr_write_readonly_property` first.
+- [x] S Write `docs/architecture/compile-stops.md`: upstream model, current mechanisms, target
+  design, and the §1.3 invariants formerly listed under 2.4.
+- [x] M Parser: one `Truncated` carrier on every call form, `inherited` included; the analyzer
+  analyzes only completed arguments (`missing_parenthesis1`).
+- [x] M Analyzer: real stops via `addCompilerStop` (`internal/semantic/compile_stop.go`),
+  mapped from upstream's `AddCompilerStop` sites (`HelpersFail/strict`, `except_error4`/`5`).
+- [x] S Frontend: delete `type_punctuation.go` and the deferred-call refine pass; the analyzer
+  decides boundary-call stops; apply the stop cut to units.
+- [x] S Drop completion hints of blocks cut by a missing END (`block_unfinished2`).
+- [ ] S ⚠️ Re-run `--classify`. Then move the first-diagnostic gaps that the stop cut isolated
+  into Phase 1/4, starting with `case_error6`, `for_var_usage3`/`4`, `func_ptr2`,
+  `invalid_cast3`, `member_of_void1`, `method2`, `property_write5` and `const_3`.
+- [ ] S Finish the single cut in the frontend:
+  - A semantic diagnostic that was emitted early but is positioned after a later semantic stop
+    is not cut yet, for example a helper's redundant-specifier hint.
+  - Now that `Unknown name` stops, remove the class-body filter in `semanticDiagnostics` and
+    its first-stop `break`, unless the measurement shows they are still needed.
+- [ ] S ⚠️ Measure the former 2.1 tails against the carrier: `Default.Low(;`, intrinsic casing
+  hints inside `PrintLn(debugbreak(;`, and nonempty/EOF recovery after reintroduced-property
+  brackets. Park any that no fixture needs.
 
 ### 2.2 Property-access consolidation — M (refactor, no new behaviour)
 
@@ -506,6 +492,9 @@ after 2.2:
   - private-access/static/write-only call-ordering alignment.
 - Qualified builtin calls through `Internal`/`System` (`Internal.Abs(-3)`) and method-call
   syntax on those qualifiers.
+- The follow-up diagnostic upstream reports inside `begin…end` for a value left unconsumed after
+  a read-only property assignment. No fixture measures it:
+  `expr_write_readonly_property` fails for an unrelated reason, `write (expr)` parsing.
 
 ---
 
