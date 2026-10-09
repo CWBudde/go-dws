@@ -1417,6 +1417,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	resolved, err := e.ResolveTypeFromAnnotation(typeExpr, ctx)
 	if err != nil {
+		if _, isRecord := typeExpr.(*ast.RecordTypeNode); isRecord {
+			return e.newError(node, "%s", err)
+		}
 		return &runtime.NilValue{}
 	}
 	return e.createZeroValueForResolvedType(resolved, ctx)

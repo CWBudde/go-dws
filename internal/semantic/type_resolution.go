@@ -122,13 +122,22 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 		recordType.SetFieldVisibility(fieldName, int(field.Visibility))
 	}
 
-	if recordNode.Incomplete {
-		return nil, nil
+	indexSignatures := make([][]types.Type, len(recordNode.Properties))
+	for i, prop := range recordNode.Properties {
+		indexSignatures[i] = a.resolveRecordPropertyIndexParamTypes(prop.IndexParams)
 	}
 
-	for _, prop := range recordNode.Properties {
+	for i, prop := range recordNode.Properties {
+		if prop.Type == nil {
+			continue
+		}
 		propType, err := a.resolveTypeExpression(prop.Type)
 		if err != nil {
+			if recordNode.Incomplete {
+				a.addStructuredError(NewGenericError(prop.Token.Pos, fmt.Sprintf(
+					"unknown type '%s' for property '%s' in inline record", getTypeExpressionName(prop.Type), prop.Name.Value)))
+				continue
+			}
 			return nil, err
 		}
 		propKey := ident.Normalize(prop.Name.Value)
@@ -143,7 +152,10 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 			DeprecatedMessage: prop.DeprecatedMessage,
 			IsDeprecated:      prop.IsDeprecated,
 
-			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
+			IndexParamTypes: indexSignatures[i],
+			IndexParamNames: propertyIndexParamNames(prop.IndexParams),
+			IndexParamModes: propertyIndexParamModes(prop.IndexParams),
+			IsClassProperty: prop.IsClassProperty,
 		}
 		switch {
 		case prop.ReadField != "":
@@ -166,6 +178,13 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 		recordType.Properties[propKey] = propInfo
 	}
 
+	if recordNode.Incomplete {
+		a.analyzeIncompleteInlineRecordMethods(recordNode, recordType)
+	}
+	a.validateRecordPropertyDeclarations(recordType, recordNode.Properties, recordNode.Methods)
+	if recordNode.Incomplete {
+		return nil, nil
+	}
 	return recordType, nil
 }
 
@@ -1383,4 +1402,68 @@ func (a *Analyzer) resolveClassOfTypeNode(classOfNode *ast.ClassOfTypeNode) (typ
 	return &types.ClassOfType{
 		ClassType: concreteClassType,
 	}, nil
+}
+
+// analyzeIncompleteInlineRecordMethods preserves reached body diagnostics using
+// local declaration metadata. The incomplete type is never returned or registered.
+func (a *Analyzer) analyzeIncompleteInlineRecordMethods(node *ast.RecordTypeNode, record *types.RecordType) {
+	for _, method := range node.Methods {
+		signature := a.incompleteInlineRecordMethodSignature(method)
+		if signature == nil {
+			continue
+		}
+		key := ident.Normalize(method.Name.Value)
+		info := &types.MethodInfo{Signature: signature, IsClassMethod: method.IsClassMethod, HasOverloadDirective: method.IsOverload, Visibility: int(method.Visibility)}
+		if method.IsClassMethod {
+			if record.ClassMethods[key] == nil {
+				record.ClassMethods[key] = signature
+			}
+			record.ClassMethodNames[key] = method.Name.Value
+			record.ClassMethodOverloads[key] = append(record.ClassMethodOverloads[key], info)
+		} else {
+			if record.Methods[key] == nil {
+				record.Methods[key] = signature
+			}
+			record.MethodNames[key] = method.Name.Value
+			record.MethodOverloads[key] = append(record.MethodOverloads[key], info)
+		}
+	}
+	for _, method := range node.Methods {
+		if method.Body != nil {
+			a.analyzeRecordMethodBody(method, record)
+		}
+	}
+}
+
+func (a *Analyzer) incompleteInlineRecordMethodSignature(method *ast.FunctionDecl) *types.FunctionType {
+	params := make([]types.Type, len(method.Parameters))
+	for i, param := range method.Parameters {
+		var err error
+		params[i], err = a.resolveTypeExpression(param.Type)
+		if err != nil || params[i] == nil {
+			return nil
+		}
+	}
+	var result types.Type
+	if method.ReturnType != nil {
+		var err error
+		result, err = a.resolveTypeExpression(method.ReturnType)
+		if err != nil || result == nil {
+			return nil
+		}
+	}
+	signature := types.NewFunctionType(params, result)
+	signature.VarParams = make([]bool, len(params))
+	signature.ConstParams = make([]bool, len(params))
+	signature.StrictParams = make([]bool, len(params))
+	signature.DefaultValues = make([]interface{}, len(params))
+	for i, param := range method.Parameters {
+		signature.VarParams[i] = param.ByRef
+		signature.ConstParams[i] = param.IsConst
+		signature.StrictParams[i] = isStrictTypeAnnotation(param.Type)
+		if param.DefaultValue != nil {
+			signature.DefaultValues[i] = param.DefaultValue
+		}
+	}
+	return signature
 }

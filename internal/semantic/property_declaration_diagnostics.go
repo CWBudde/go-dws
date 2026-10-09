@@ -92,17 +92,7 @@ func (a *Analyzer) checkPropertyAccessorParameters(prop *ast.PropertyDecl, metho
 		param := prop.IndexParams[i]
 		actualVar := i+offset < len(method.VarParams) && method.VarParams[i+offset]
 		actualConst := i+offset < len(method.ConstParams) && method.ConstParams[i+offset]
-		mode := ""
-		switch {
-		case param.ByRef && !actualVar:
-			mode = "Var"
-		case !param.ByRef && actualVar:
-			mode = "Value"
-		case param.IsConst && !actualConst:
-			mode = "Const"
-		case !param.IsConst && actualConst:
-			mode = "Value"
-		}
+		mode := propertyParameterModeMismatch(param, actualVar, actualConst)
 		if mode != "" {
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
 				fmt.Sprintf("Parameter %d (%s) - %s-parameter expected", i, param.Name.Value, mode)))
@@ -131,4 +121,19 @@ func propertyIndexTypesCompatible(expected, actual types.Type) bool {
 		return true
 	}
 	return operatorBindingTypesCompatible(expected, actual)
+}
+
+// propertyParameterModeMismatch preserves CheckParams' var/value/const priority.
+func propertyParameterModeMismatch(param *ast.Parameter, actualVar, actualConst bool) string {
+	switch {
+	case param.ByRef && !actualVar:
+		return "Var"
+	case !param.ByRef && actualVar:
+		return "Value"
+	case param.IsConst && !actualConst:
+		return "Const"
+	case !param.IsConst && actualConst:
+		return "Value"
+	}
+	return ""
 }

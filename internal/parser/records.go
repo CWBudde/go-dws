@@ -129,7 +129,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 	seenMethod := false
 
 	// Parse record body until 'end'
-	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
+	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF && !p.stopped() {
 		// Check for visibility modifiers. `protected` is not a legal record
 		// section, but it is consumed here so the analyzer can report it and
 		// the rest of the body still parses.
@@ -480,66 +480,12 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	// Parse optional index parameters for array properties
 	var indexParams []*ast.Parameter
 	if cursor.Peek(1).Type == lexer.LBRACK {
-		cursor = cursor.Advance() // move to '['
-		p.cursor = cursor
-
-		// Parse parameter list
-		for cursor.Peek(1).Type != lexer.RBRACK && cursor.Peek(1).Type != lexer.EOF {
-			cursor = cursor.Advance() // move to parameter name
-			p.cursor = cursor
-
-			// Parse parameter name
-			if cursor.Current().Type != lexer.IDENT {
-				p.addExpectedCurrent(lexer.IDENT)
-				return nil
-			}
-			paramName := &ast.Identifier{
-				BaseNode: ast.BaseNode{Token: cursor.Current()},
-				Value:    cursor.Current().Literal,
-			}
-
-			// Expect colon
-			if cursor.Peek(1).Type != lexer.COLON {
-				p.addExpected(lexer.COLON)
-				return nil
-			}
-			cursor = cursor.Advance() // move to ':'
-			cursor = cursor.Advance() // move to type
-			p.cursor = cursor
-
-			// Parse type
-			paramType := p.parseTypeExpression()
-			if paramType == nil {
-				return nil
-			}
-
-			cursor = p.cursor // Update cursor after parseTypeExpression
-
-			param := &ast.Parameter{
-				Token: paramName.Token,
-				Name:  paramName,
-				Type:  paramType,
-			}
-			indexParams = append(indexParams, param)
-
-			// Check for more parameters (separated by semicolon or comma)
-			if cursor.Peek(1).Type == lexer.SEMICOLON || cursor.Peek(1).Type == lexer.COMMA {
-				cursor = cursor.Advance() // move to separator
-				p.cursor = cursor
-				continue
-			}
-
-			// No more parameters - expect closing bracket
-			break
+		var ok bool
+		indexParams, ok = p.parsePropertyIndexParameters(true)
+		if !ok {
+			return &ast.RecordPropertyDecl{BaseNode: ast.BaseNode{Token: propToken}, Name: propName, IndexParams: indexParams}
 		}
-
-		// Expect closing bracket
-		if cursor.Peek(1).Type != lexer.RBRACK {
-			p.addExpected(lexer.RBRACK)
-			return nil
-		}
-		cursor = cursor.Advance() // move to ']'
-		p.cursor = cursor
+		cursor = p.cursor
 	}
 
 	// Expect colon
@@ -606,6 +552,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.ReadField = cursor.Current().Literal
+			prop.ReadAccessorPos = cursor.Current().End()
 		default:
 			p.addExpected(lexer.IDENT)
 			return nil
@@ -627,6 +574,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.WriteField = cursor.Current().Literal
+			prop.WriteAccessorPos = cursor.Current().End()
 		default:
 			p.addExpected(lexer.IDENT)
 			return nil

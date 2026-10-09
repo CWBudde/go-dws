@@ -1123,6 +1123,10 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
 		}
 
+		indexTypes, err := e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx)
+		if err != nil {
+			return e.newError(node, "%s", err)
+		}
 		propInfo := &types.RecordPropertyInfo{
 			Name:       propName,
 			Type:       propType,
@@ -1131,7 +1135,10 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
-			IndexParamTypes: e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx),
+			IndexParamTypes: indexTypes,
+			IndexParamNames: indexParamNames(prop.IndexParams),
+			IndexParamModes: indexParamModes(prop.IndexParams),
+			IsClassProperty: prop.IsClassProperty,
 		}
 
 		switch {

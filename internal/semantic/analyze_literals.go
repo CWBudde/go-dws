@@ -651,6 +651,10 @@ func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExp
 			return nil
 		}
 		memberNames[key] = true
+		indexTypes := a.resolveRecordPropertyIndexParamTypes(prop.IndexParams)
+		if prop.Type == nil {
+			continue
+		}
 		propType, err := a.resolveTypeExpression(prop.Type)
 		if err != nil {
 			a.addError("unknown type for property '%s' in record expression", prop.Name.Value)
@@ -664,7 +668,10 @@ func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExp
 			Name: prop.Name.Value, Type: propType,
 			ReadField: prop.ReadField, WriteField: prop.WriteField,
 			IsDefault: prop.IsDefault, IsIndexed: len(prop.IndexParams) > 0,
-			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
+			IndexParamTypes: indexTypes,
+			IndexParamNames: propertyIndexParamNames(prop.IndexParams),
+			IndexParamModes: propertyIndexParamModes(prop.IndexParams),
+			IsClassProperty: prop.IsClassProperty,
 		}
 		switch {
 		case prop.ReadField != "":
@@ -733,6 +740,7 @@ func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExp
 		}
 	}
 
+	a.validateRecordPropertyDeclarations(recordType, expr.Properties, expr.Methods)
 	return recordType
 }
 

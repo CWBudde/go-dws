@@ -21,3 +21,16 @@ func TestPropertyIndexModes_LegacyAndDeclared(t *testing.T) {
 		t.Fatal("missing mode must default to value")
 	}
 }
+
+func TestRecordPropertyIndexModes_LegacyAndDeclared(t *testing.T) {
+	legacy := &RecordPropertyInfo{}
+	if legacy.IndexMode(0) != PropertyIndexValue {
+		t.Fatal("legacy record metadata must default to value")
+	}
+	prop := &RecordPropertyInfo{IndexParamModes: []PropertyIndexMode{PropertyIndexVar, PropertyIndexConst, PropertyIndexValue}}
+	for i, want := range []PropertyIndexMode{PropertyIndexVar, PropertyIndexConst, PropertyIndexValue, PropertyIndexValue} {
+		if got := prop.IndexMode(i); got != want {
+			t.Fatalf("index %d: got %v, want %v", i, got, want)
+		}
+	}
+}

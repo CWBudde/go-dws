@@ -41,33 +41,10 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	// Check for indexed property parameters: property Items[index: Integer]
 	var indexParams []*ast.Parameter
 	if p.peekTokenIs(lexer.LBRACK) {
-		p.nextToken() // move to '['
-
-		if p.peekTokenIs(lexer.RBRACK) {
-			p.nextToken() // consume ']' and recover as a non-indexed property
-			indexParams = []*ast.Parameter{}
-			tok := p.cursor.Current()
-			p.recordError(NewParserError(tok.Pos, tok.Length(), "Parameters expected", ErrInvalidSyntax))
-		} else {
-			p.nextToken() // move to the first group, including its optional modifier
-			for {
-				groupParams := p.parseIndexedPropertyParameterGroup()
-				if groupParams == nil {
-					return nil
-				}
-				indexParams = append(indexParams, groupParams...)
-				if p.peekTokenIs(lexer.SEMICOLON) {
-					p.nextToken() // move to ';'
-					p.nextToken() // move to the next group
-					continue
-				}
-				if !p.peekTokenIs(lexer.RBRACK) {
-					p.addExpectedStop(lexer.RBRACK)
-					return nil
-				}
-				p.nextToken() // consume ']'
-				break
-			}
+		var ok bool
+		indexParams, ok = p.parsePropertyIndexParameters(false)
+		if !ok {
+			return nil
 		}
 	}
 
@@ -351,7 +328,7 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 // Defaults, lazy parameters and const(ref) belong to routine parameter grammar.
 // PRE: cursor is parameter name IDENT, VAR or CONST
 // POST: cursor is type IDENT
-func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
+func (p *Parser) parseIndexedPropertyParameterGroup(composite bool) []*ast.Parameter {
 	params := []*ast.Parameter{}
 	byRef, isConst := p.curTokenIs(lexer.VAR), p.curTokenIs(lexer.CONST)
 	if byRef || isConst {
@@ -392,14 +369,9 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	}
 	p.nextToken()
 
-	// Parse type annotation
-	if !p.expectPeek(lexer.IDENT) {
+	paramType := p.parsePropertyIndexParameterType(composite)
+	if paramType == nil {
 		return nil
-	}
-
-	paramType := &ast.TypeAnnotation{
-		Token: p.cursor.Current(),
-		Name:  p.cursor.Current().Literal,
 	}
 
 	// Create parameter for each name
@@ -434,4 +406,55 @@ func (p *Parser) parsePropertyDeprecatedDirective(prop *ast.PropertyDecl) bool {
 	}
 
 	return p.expectPeek(lexer.SEMICOLON)
+}
+
+// parsePropertyIndexParameters shares the declaration list grammar. Records retain
+// their existing composite type annotations; classes use their named type grammar.
+func (p *Parser) parsePropertyIndexParameters(composite bool) ([]*ast.Parameter, bool) {
+	p.nextToken() // '['
+	if p.peekTokenIs(lexer.RBRACK) {
+		p.nextToken()
+		tok := p.cursor.Current()
+		p.recordError(NewParserError(tok.Pos, tok.Length(), "Parameters expected", ErrInvalidSyntax))
+		return []*ast.Parameter{}, true
+	}
+	p.nextToken()
+	var params []*ast.Parameter
+	for {
+		group := p.parseIndexedPropertyParameterGroup(composite)
+		if group == nil {
+			return params, false
+		}
+		params = append(params, group...)
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			p.nextToken()
+			continue
+		}
+		if !p.peekTokenIs(lexer.RBRACK) {
+			p.addExpectedStop(lexer.RBRACK)
+			return params, false
+		}
+		p.nextToken()
+		return params, true
+	}
+}
+
+// parsePropertyIndexParameterType retains the record reader's composite grammar
+// and ReadType's ordinary missing-type recovery without consuming the separator.
+func (p *Parser) parsePropertyIndexParameterType(composite bool) ast.TypeExpression {
+	if composite && !isTypeExpressionStartToken(p.cursor.Peek(1).Type) && !p.peekTokenIs(lexer.TYPE) {
+		tok := p.cursor.Peek(1)
+		p.addTypeExpectedAt(tok)
+		return &ast.TypeAnnotation{Token: tok, Name: "Variant"}
+	}
+	p.nextToken()
+	if composite {
+		return p.parseTypeExpression()
+	}
+	if !p.curTokenIs(lexer.IDENT) {
+		p.addExpectedStopCurrent(lexer.IDENT)
+		return nil
+	}
+	return &ast.TypeAnnotation{Token: p.cursor.Current(), Name: p.cursor.Current().Literal}
 }
