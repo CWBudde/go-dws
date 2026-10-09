@@ -87,9 +87,9 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString("[")
 		params := make([]string, len(pd.IndexParams))
 		for i, param := range pd.IndexParams {
-			params[i] = param.Name.String() + ": " + param.Type.String()
+			params[i] = param.String()
 		}
-		out.WriteString(strings.Join(params, ", "))
+		out.WriteString(strings.Join(params, "; "))
 		out.WriteString("]")
 	}
 

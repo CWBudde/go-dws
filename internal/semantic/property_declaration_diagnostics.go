@@ -84,6 +84,29 @@ func (a *Analyzer) checkPropertyAccessorParameters(prop *ast.PropertyDecl, metho
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
 				fmt.Sprintf(`Parameter %d - Type "%s" expected (instead of "%s")`, i, semanticTypeNameForDiagnostic(expected), semanticTypeNameForDiagnostic(actual))))
 			compatible = false
+			continue // A type mismatch suppresses this index's mode mismatch.
+		}
+		if i >= len(prop.IndexParams) {
+			continue // A pure index directive has no declared index parameters.
+		}
+		param := prop.IndexParams[i]
+		actualVar := i+offset < len(method.VarParams) && method.VarParams[i+offset]
+		actualConst := i+offset < len(method.ConstParams) && method.ConstParams[i+offset]
+		mode := ""
+		switch {
+		case param.ByRef && !actualVar:
+			mode = "Var"
+		case !param.ByRef && actualVar:
+			mode = "Value"
+		case param.IsConst && !actualConst:
+			mode = "Const"
+		case !param.IsConst && actualConst:
+			mode = "Value"
+		}
+		if mode != "" {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
+				fmt.Sprintf("Parameter %d (%s) - %s-parameter expected", i, param.Name.Value, mode)))
+			compatible = false
 		}
 	}
 	return compatible

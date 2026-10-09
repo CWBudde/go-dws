@@ -43,44 +43,31 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	if p.peekTokenIs(lexer.LBRACK) {
 		p.nextToken() // move to '['
 
-		// Check for empty brackets (not allowed)
 		if p.peekTokenIs(lexer.RBRACK) {
-			p.addError("indexed property cannot have empty parameter list", ErrInvalidSyntax)
-			return nil
-		}
-
-		p.nextToken() // move to first parameter name
-
-		// Parse indexed property parameters (similar to function parameters but with brackets)
-		for {
-			// Parse parameter group (may have multiple names with same type)
-			groupParams := p.parseIndexedPropertyParameterGroup()
-			if groupParams == nil {
-				return nil
+			p.nextToken() // consume ']' and recover as a non-indexed property
+			indexParams = []*ast.Parameter{}
+			tok := p.cursor.Current()
+			p.recordError(NewParserError(tok.Pos, tok.Length(), "Parameters expected", ErrInvalidSyntax))
+		} else {
+			p.nextToken() // move to the first group, including its optional modifier
+			for {
+				groupParams := p.parseIndexedPropertyParameterGroup()
+				if groupParams == nil {
+					return nil
+				}
+				indexParams = append(indexParams, groupParams...)
+				if p.peekTokenIs(lexer.SEMICOLON) {
+					p.nextToken() // move to ';'
+					p.nextToken() // move to the next group
+					continue
+				}
+				if !p.peekTokenIs(lexer.RBRACK) {
+					p.addExpectedStop(lexer.RBRACK)
+					return nil
+				}
+				p.nextToken() // consume ']'
+				break
 			}
-			indexParams = append(indexParams, groupParams...)
-
-			// After parsing a parameter group, check what comes next:
-			// - ']' : end of parameters
-			// - ';' : more parameter groups follow
-			if !p.peekTokenIs(lexer.RBRACK) && !p.peekTokenIs(lexer.SEMICOLON) {
-				p.addExpectedStop(lexer.RBRACK)
-				return nil
-			}
-
-			if p.peekTokenIs(lexer.SEMICOLON) {
-				p.nextToken() // move to ';'
-				p.nextToken() // move past ';' to next parameter name
-				continue
-			}
-
-			// Must be at ']', exit loop
-			break
-		}
-
-		// Expect closing bracket
-		if !p.expectPeek(lexer.RBRACK) {
-			return nil
 		}
 	}
 
@@ -103,9 +90,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	}
 
 	// Expect colon before type
-	if !p.expectPeek(lexer.COLON) {
+	if !p.peekTokenIs(lexer.COLON) {
+		p.addExpectedStop(lexer.COLON)
 		return nil
 	}
+	p.nextToken()
 
 	// Parse property type via the shared type parser so composite types
 	// (e.g. `array of String`) are supported, not just a bare identifier.
@@ -360,12 +349,16 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 }
 
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.
-// Syntax: name: Type  or  name1, name2: Type
-// Similar to parseParameterGroup but without 'var' keyword support.
-// PRE: cursor is parameter name IDENT
+// Syntax: [var | const] name1, name2: Type. Each group resets the modifier.
+// Defaults, lazy parameters and const(ref) belong to routine parameter grammar.
+// PRE: cursor is parameter name IDENT, VAR or CONST
 // POST: cursor is type IDENT
 func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
+	byRef, isConst := p.curTokenIs(lexer.VAR), p.curTokenIs(lexer.CONST)
+	if byRef || isConst {
+		p.nextToken()
+	}
 
 	// Collect parameter names separated by commas
 	names := []*ast.Identifier{}
@@ -373,7 +366,7 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name (can be IDENT or keyword used as identifier)
 		if !p.curTokenIs(lexer.IDENT) && !p.curTokenIs(lexer.INDEX) {
-			p.addExpectedCurrent(lexer.IDENT)
+			p.addExpectedStopCurrent(lexer.IDENT)
 			return nil
 		}
 
@@ -395,9 +388,11 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	}
 
 	// Expect colon before type
-	if !p.expectPeek(lexer.COLON) {
+	if !p.peekTokenIs(lexer.COLON) {
+		p.addExpectedStop(lexer.COLON)
 		return nil
 	}
+	p.nextToken()
 
 	// Parse type annotation
 	if !p.expectPeek(lexer.IDENT) {
@@ -412,9 +407,11 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	// Create parameter for each name
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token: name.Token,
-			Name:  name,
-			Type:  paramType,
+			Token:   name.Token,
+			Name:    name,
+			Type:    paramType,
+			ByRef:   byRef,
+			IsConst: isConst,
 		}
 		params = append(params, param)
 	}

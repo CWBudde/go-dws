@@ -33,8 +33,14 @@ func (a *Analyzer) validateInterfacePropertyAccessors(decl *ast.PropertyDecl, pr
 			continue
 		case !write && (method.ReturnType == nil || !method.ReturnType.Equals(prop.Type)):
 			message = `Field/method "%s" has an incompatible type`
-		case !interfacePropertyParametersMatch(method, prop, write):
-			message = `Method "%s" has incompatible parameters`
+		default:
+			var value types.Type
+			if write {
+				value = prop.Type
+			}
+			if !a.checkPropertyAccessorParameters(decl, method, prop.IndexParamTypes, value, propertyAccessorDiagnosticPos(decl, write)) {
+				message = `Method "%s" has incompatible parameters`
+			}
 		}
 
 		if message != "" {
@@ -111,22 +117,6 @@ func (a *Analyzer) checkInterfacePropertyAccess(prop *types.PropertyInfo, node a
 	if (!write || compound) && prop.ReadKind == types.PropAccessNone {
 		a.addStructuredError(NewWriteOnlyPropertyError(node.Pos(), prop.Name))
 		return false
-	}
-	return true
-}
-
-func interfacePropertyParametersMatch(method *types.FunctionType, prop *types.PropertyInfo, write bool) bool {
-	expected := append([]types.Type{}, prop.IndexParamTypes...)
-	if write {
-		expected = append(expected, prop.Type)
-	}
-	if len(expected) != len(method.Parameters) {
-		return false
-	}
-	for n, typ := range expected {
-		if !typ.Equals(method.Parameters[n]) {
-			return false
-		}
 	}
 	return true
 }

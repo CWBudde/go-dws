@@ -44,10 +44,7 @@ func (p *Printer) printPropertyDecl(pd *ast.PropertyDecl) {
 				p.write(";")
 				p.space()
 			}
-			p.printDWScript(param.Name)
-			p.write(":")
-			p.space()
-			p.printDWScript(param.Type)
+			p.printParameter(param)
 		}
 		p.write("]")
 	}
