@@ -39,8 +39,9 @@ fixture, a user report, or an upstream test).
 - A for-in loop variable is not checked against a set's element type.
 - Subrange bounds are not checked at compile time; no fixture declares a subrange type.
 - Reintroduced-property compatibility brackets (`Prop()`) beyond the shipped read contexts.
-  - Shipped: explicit, unqualified and named-inherited scalar reads; named, unqualified and
-    inherited indexed reads.
+  - Shipped: explicit, unqualified and named-inherited scalar reads; named and unqualified
+    indexed reads. Named inherited indexed reads are in open PR #472 and remain parked until
+    it merges.
   - Only three fixtures use `property … reintroduce` (`property_reintroduce1`/`2`,
     `SimpleScripts/property_reintroduce`), and all three pass.
   - Parked: bare `Prop[i]`; `Obj()[i]` and other default-property postfixes; `index` directive

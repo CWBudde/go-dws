@@ -56,7 +56,7 @@ Phase 6 is gated.
 - Of the 268 failing `*Fail` fixtures:
   - 107 still print a go-native sentence (1.8);
   - 96 are at distance 1;
-  - only about 4 are blocked purely by compile stops (2.1).
+  - only about 3 are blocked purely by compile stops (2.1).
 
 ---
 
@@ -379,8 +379,10 @@ Replace the five mechanisms with one model: the parser marks a truncated call, t
 genuinely stops, and the frontend makes one position cut.
 
 Measured yield:
-- About 4 fixtures pass outright: `missing_parenthesis1`, `static_methods`, `HelpersFail/strict`
-  and `block_unfinished2`.
+- About 3 fixtures pass outright: `missing_parenthesis1`, `HelpersFail/strict` and
+  `block_unfinished2`. `static_methods` would also match once later diagnostics are cut, but it
+  is a [known divergence](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written)
+  and is not a target.
 - About 24 more drop to distance 1, where the remaining line is a missing or wrong first stop
   diagnostic. Examples: `case_error6`, `for_var_usage3`/`4`, `func_ptr2`, `invalid_cast3`,
   `member_of_void1`, `method2`, `property_write5`, `const_3`.
@@ -408,7 +410,7 @@ Phase 1/4.
   the single `compileStopped` flag.
   - Analyzer `"(" expected` stops suppress later diagnostics the way parser stops do.
   - The end-of-program forward check follows the same rule.
-  - Target fixtures: `static_methods`, `HelpersFail/strict`.
+  - Target fixture: `HelpersFail/strict`.
 - [ ] S Frontend: reduce `compileParsedResult` to one stop-position cut.
   - Delete `refineTypePunctuationDiagnostics` (message-string matching) and
     `refineDeferredPropertyCallDiagnostics` once the carrier exists.
@@ -487,8 +489,11 @@ These are moved to [`known-divergences.md`](docs/decisions/known-divergences.md#
 Each reopens only with new evidence (a fixture, a user report, or an upstream test), and only
 after 2.2:
 
-- Reintroduced-property compatibility-bracket contexts beyond the explicit/unqualified/
-  inherited scalar and named/unqualified/inherited indexed reads that shipped:
+- Reintroduced-property compatibility-bracket contexts beyond what has shipped:
+  explicit, unqualified and inherited scalar reads, and named and unqualified indexed reads.
+  Named inherited indexed reads are landing in
+  [#472](https://github.com/CWBudde/go-dws/pull/472); they stay parked if #472 drops them.
+  Parked:
   - bare `Prop[i]`;
   - `Obj()[i]` and other default-property postfixes;
   - `index` directive combined with index parameters;

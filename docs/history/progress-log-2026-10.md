@@ -24,7 +24,7 @@ architecture, fixture leverage, PR history and docs.
 
 **Measured leverage:**
 - 107 of the 268 failing `*Fail` fixtures still print a go-native sentence.
-- About 4 are blocked purely by compile stops.
+- About 3 are blocked purely by compile stops; `static_methods` would be a fourth, but it is a known divergence.
 
 **PLAN changes:**
 - Phase 2 is now:
