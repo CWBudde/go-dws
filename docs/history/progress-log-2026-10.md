@@ -1,5 +1,60 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Routine export directives (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts one
+ordinary procedure/function `export` directive and an optional decoded string name.
+AST metadata distinguishes absent and explicit empty names. Empty, escaped and
+multiline names, helper aliases, linkage and qualifier flags survive AST/source
+printer round trips. Script bodies remain runnable under their script names;
+export metadata does not enable external linkage. Combined directives print in
+source order: external, forward, export, helper, then calling qualifiers.
+
+Declaration context distinguishes ordinary, member and unit-interface routines.
+Unit-interface exports retain implicit forwarding through the common statement
+boundary, preserving stop checks and synthesized declarations. Invalid name tokens
+stay unread for the ordinary semicolon error and subsequent genuine BEGIN stop;
+exported routines without a body also stop at EOF. Earlier reached errors remain,
+while later parser/semantic/lexer messages and program-end forward checks are skipped.
+The complete two-message `FailureScripts/export` expectation now passes.
+
+A matching forward implementation cannot repeat export. Local binding is captured
+before registration changes its forward state; non-overloaded forwards preserve
+header mismatches before the keyword stop, while explicit overloads use the existing
+signature/return/default match. Local shadows and genuine new overload-set members
+remain legal. Matched unit-interface implementations follow the same rule. Reached
+export headers survive missing-body recovery so malformed/EOF implementations still
+select that branch. Semantic stops win equal-position parser ties; earlier positions
+retain priority. Convention hints wait for export binding and are omitted when their
+post-export qualifier was never reached. Public compile failures return nil Programs.
+
+Independent task review and three correction reviews covered helper metadata,
+linkage order, forward context, malformed-header retention and unreached qualifier
+hints. Tests verify complete frontend/public Engine diagnostic lists, actual stop
+metadata, AST/printer declaration state, runnable ordinary/exported/helper bodies,
+once-only effects, overloads, units and lexical shadows. Expectations are source-derived
+from pinned compiler revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; no Pascal oracle ran.
+
+The final CLI report has 1,429 passes, 585 failures and 27 skips across 2,041 fixtures:
+only `FailureScripts/export` gains a pass, with no regressions. FailureScripts ratchets
+325 to 326; SimpleScripts remains 399 and BuildScripts retains its established floor
+of 7. Earlier transient BuildScripts gains reproduced on both immutable old/new CLIs
+and remain attributed to existing initialization-order variation. Parser coverage is
+4,729/5,874 = 80.5073%, above 80.0513%; lexer remains 1,386/1,570 = 88.2803%.
+
+PLAN.md checks the export item and leaves all remaining Phase 2 work open. Property
+index declaration modes, live references and setter capture order are the next ordered
+slices. General late-directive BEGIN recovery, forbidden interface-method directives,
+lone explicitly overloaded forward registration and unmatched unit signatures retain
+separate measured boundaries. Unit-local lexer cutoff still needs the broader stop model.
+
+Final verification passes with Go 1.24.13 and native test storage:
+`go test -race -coverprofile=.cache/phase23-final-coverage.out ./...`, the CI lint gate
+(zero issues), fresh CLI build/complete-list execution checks/full fixture comparison,
+`just fixture-update`, `just fixture-check`, tracked Go formatting, `go mod tidy`,
+deterministic `go generate ./pkg/ast` and `git diff --check`. Visitor and dependency
+files are unchanged. Both guides record the new behavior and remaining boundaries.
+
 ## 2026-10-09 — Property descriptions and compiler-stop end hints (PLAN 2.2, 2.4)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts

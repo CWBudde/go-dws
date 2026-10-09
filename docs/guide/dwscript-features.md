@@ -45,6 +45,28 @@ This document catalogs ALL features found in the original DWScript implementatio
 
 ---
 
+### Routine export directives
+
+Standalone procedures and functions accept `export;` or `export 'Name';` after
+their headers. They keep their normal script bodies and are called by their
+script names:
+
+```pascal
+function Answer: Integer; export 'PublicAnswer';
+begin
+  Result := 42;
+end;
+PrintLn(Answer());
+```
+
+The export name is declaration metadata. Empty, escaped and multiline names
+survive AST and source-printer round trips, including helper aliases and routine
+directive flags. Exported unit-interface routines retain implicit forwarding to
+their implementations; implementations do not repeat `export`. Combined linkage
+prints in `external; forward; export` order. Member declarations keep their existing directive rules.
+
+---
+
 ### Control Flow
 
 **Test Evidence**: `SimpleScripts/`, Core test files

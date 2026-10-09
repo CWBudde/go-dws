@@ -421,6 +421,38 @@ passing the scalar fixtures does not close the full property item. Parser-only
 clients retain the provisional `Expression expected` stop for a malformed boundary
 call until semantic analysis resolves its property identity.
 
+### Routine export declarations
+
+An ordinary procedure or function may have one `export` directive with an
+optional string name. An invalid name token stays unread: the ordinary
+`";" expected` error precedes a genuine `BEGIN expected` compiler stop at that
+token. A missing directive semicolon leaves a valid `begin` available to the
+routine body. An exported routine also requires a body at EOF, anchored at the
+last real token, except when external linkage, forwarding or the unit-interface
+context already makes it bodyless.
+
+Earlier reached diagnostics survive the stop; later statements, lexer messages
+and program-end forward checks do not add messages. Unit-interface context passes
+through the common statement boundary, preserving stop checks and synthesized
+type declarations. Export flags are separate from external linkage.
+
+A routine implementing an existing local forward declaration cannot repeat
+`export`: compilation stops with `BEGIN expected` at the directive, including
+when the implementation has an invalid export name or ends before its body.
+Earlier header/signature diagnostics remain. Genuine overload sets match the
+forward signature; a new exported overload and a nested local shadow retain
+their own declaration context. A matching unit-interface implementation follows
+the same rule. A semantic stop wins a parser-stop tie at the same position;
+an earlier parser stop still wins.
+
+General directive/body recovery remains separate work: misplaced `export` after
+calling qualifiers, `inline` or `deprecated` retains the existing expression
+diagnostic, and the interface-method reader still silently discards it. These
+cases do not acquire ordinary export metadata. The existing singleton
+explicit-overload forward registration can still reject a differing new
+signature by name; this routine-registration gap remains open. Unit-local lexer
+cutoff remains part of the broader compile-stop work.
+
 ### Property and operator declarations
 
 A property `description` directive requires a string literal. If it is missing,

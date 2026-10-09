@@ -153,7 +153,9 @@ Explicit scalar reintroduced-property empty reads and statement-boundary recover
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
 in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
 Property descriptions and program-end hint suppression are implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
-Next: the `export` parser gap, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+The `export` directive is implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
+Next: property index parameter modes and live references, then remaining Phase 2
+recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -446,7 +448,26 @@ punctuation in the parser before reading arguments.
 ### 2.2 Parser gaps — S each
 
 - [ ] `var`/`const` in property index parameters (`array_params1`/`2`, `Parameters expected`).
-- [ ] The `export` directive.
+  - [ ] Declaration grammar/recovery, accessor passing-mode validation and AST/printer
+    preservation; compare both complete fixture diagnostic lists.
+  - [ ] Typed passing-mode metadata and live caller references through ordinary
+    named/default property access; capture setter receiver/indices before its RHS.
+  - [ ] Writable/type/term-boundary checks and interface/inherited/compatibility reads,
+    retaining selected accessor ownership, argument order and exceptions.
+  - [ ] Measure and complete the independent record declaration/runtime paths;
+    keep unsupported indexed helper dispatch and inherited writes explicitly open.
+- [x] The `export` directive ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  Preserve optional names, helper/linkage metadata and runnable bodies; reject repeated
+  export on matching forward implementations with a genuine stop at the keyword,
+  including malformed/EOF headers and unreached qualifier hints.
+- [ ] General routine directive/context recovery measured during export work:
+  misplaced late directives must stop at the directive with `BEGIN expected`,
+  and interface-method readers must reject forbidden directives instead of
+  silently discarding them. Ordinary export metadata does not fix these older paths.
+- [ ] Preserve signature matching for a lone explicitly overloaded forward before
+  registering a differing new overload; existing single-forward replacement
+  still matches by name. Reuse exact return/default matching without changing
+  the legal new-overload-set behavior.
 - [ ] `OF OBJECT expected` (`legacy_proc_of_object`).
 - [ ] `array of const` (`open_array`).
 - [x] `String expected` for a property description (`property_description1`,
