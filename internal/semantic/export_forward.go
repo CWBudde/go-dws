@@ -20,8 +20,7 @@ func (st *SymbolTable) exportImplementsForward(name string, signature *types.Fun
 	}
 	for _, overload := range candidates {
 		forward, function := overload.Type.(*types.FunctionType)
-		if overload.IsForward && function && SignaturesEqual(forward, signature) &&
-			forward.ReturnType.Equals(signature.ReturnType) && defaultParametersMatch(forward, signature) {
+		if overload.IsForward && function && forwardSignaturesMatch(forward, signature) {
 			return true
 		}
 	}

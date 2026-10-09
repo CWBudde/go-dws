@@ -389,9 +389,14 @@ func (st *SymbolTable) DefineOverload(
 		return err
 	}
 
-	// Handle simple forward replacement (non-overload set)
+	// An ordinary forward binds by name, including mismatching headers. A lone
+	// explicit overload must select its signature before replacement clears the
+	// pending forward; otherwise a genuinely new overload consumes that forward.
 	if !existing.IsOverloadSet && existing.IsForward && !isForward {
-		return st.replaceForwardWithImplementation(name, existing, funcType, hasOverloadDirective)
+		existingFunc, ok := existing.Type.(*types.FunctionType) // ensureFunctionSymbol checked this above
+		if ok && (!existing.HasOverloadDirective || forwardSignaturesMatch(existingFunc, funcType)) {
+			return st.replaceForwardWithImplementation(name, existing, funcType, hasOverloadDirective)
+		}
 	}
 
 	if !existing.IsForward && isForward {
@@ -431,6 +436,14 @@ func (st *SymbolTable) DefineOverload(
 	}
 
 	return st.addOverloadToSet(name, existing, funcType, hasOverloadDirective, isForward, pos)
+}
+
+// forwardSignaturesMatch uses the existing declaration matching criteria:
+// parameter types/modes, return type and symmetric default presence. Parameter
+// names, default data and directional default omission are not compared here.
+func forwardSignaturesMatch(forward, implementation *types.FunctionType) bool {
+	return SignaturesEqual(forward, implementation) &&
+		forward.ReturnType.Equals(implementation.ReturnType) && defaultParametersMatch(forward, implementation)
 }
 
 func (st *SymbolTable) defineNewSymbol(name string, funcType *types.FunctionType, hasOverloadDirective, isForward bool, pos token.Position) {
