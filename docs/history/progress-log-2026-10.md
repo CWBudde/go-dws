@@ -1,5 +1,62 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Record property index declarations (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) shares
+semicolon-separated value/var/const index grammar with record declarations while
+preserving their composite type annotations. Named, inline and anonymous records
+retain immutable index names, types, modes and class/default flags through all six
+semantic/evaluator builders. Legacy metadata without modes still means value.
+Record property printing, traversal and generic cloning retain modifiers and
+positions; partial property printing safely handles an unread type.
+
+Record-owned accessor validation follows the selected underlying method through
+forwarding. Getter result/kind checks precede parameter checks; index type precedes
+mode, then default presence. Count and setter Value checks retain their earlier
+priority, with Value modes/defaults excluded from index equality. Declaration names
+own parameter detail diagnostics even when accessor names differ. No record-to-class
+conversion or extra implicit Self offset was introduced.
+
+Missing index types recover ordinarily as Variant without consuming the delimiter.
+Unknown named index types report at the consumed type end and keep Variant recovery
+for later checks. Genuine stopped lists retain reached partial indices and completed
+members while skipping unread types/accessors. Incomplete inline records preserve
+earlier accessor/body diagnostics and local sibling method scope, including when a
+completed property type fails. Their incomplete descriptor is never registered.
+Unchecked direct inline record annotations propagate index-type construction errors
+instead of silently substituting nil; other zero-value fallback policy is unchanged.
+
+Actual public Compile controls assert accepted Programs or nil rejected Programs
+and complete ordered lists across all three forms. Checked/unchecked metadata tests
+mutate the original AST after registration to verify signature independence.
+Unknown-type unchecked controls Compile successfully and fail at Run as required;
+valid inline zero values remain runnable. Getter subtype, method/expression forwarding,
+mode/default/type/count priority, partial AST cloning and reached Stop controls pass.
+Independent task review plus three scoped correction reviews approve the final slice.
+MissingBody multi-error controls preserve existing Go behavior; they are not Pascal
+parity, because the pinned original stops at that expression's unknown name.
+
+Final validation passes: `go test -race -count=1 -coverprofile=.cache/phase28-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and full fixture failure-set
+comparison, tracked formatting, `go mod tidy`, deterministic visitor generation,
+fixture regeneration and the subsequent fixture gate, and diff hygiene. CLI results
+exactly match the prior 1,432 passes, 582 failures and 27 skips across 2,041 fixtures.
+Regenerated Go status records 1,434/580/27 with BuildScripts 9; the subsequent gate
+records 1,433/581/27 with BuildScripts 8. Its extra pass versus the CLI is init_order2,
+already tracked for nondeterministic initialization order. The earlier CLI run also
+varied at init_order5. These are not stable gains: baselines remain unchanged at
+FailureScripts 328, SimpleScripts 400 and BuildScripts 7. Parser coverage is
+4,826/5,894 = 81.8799%, above the prior 4,776/5,902; lexer stays 1,386/1,570 = 88.2803%.
+Dependencies and generated visitor code remain unchanged.
+
+Only the record declaration/metadata child closes; the parent remains open.
+Record index execution, caller references, expression accessors, forwarding and
+receiver capture remain doable follow-ups. PLAN also retains measured class accessor
+index-default validation, common malformed array-element recovery, and completed
+property type-error recovery for complete-inline/anonymous records. Global unknown-
+expression Stop policy is separate. No Pascal executable oracle ran; source contracts
+use pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9.
+
 ## 2026-10-09 — Interface and resolved property index references (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) reuses

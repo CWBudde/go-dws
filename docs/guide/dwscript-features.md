@@ -426,13 +426,16 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Auto-properties (a bare `property Alpha: Integer;` gets a synthesized `FAlpha`)
 - ✅ Property inheritance
 - ✅ Indexed properties, including multi-index `Data[x, y: Integer]`
-- ✅ Class/interface index declarations preserve grouped `var`/`const` modes,
+- ✅ Class/interface/record index declarations preserve grouped `var`/`const` modes,
   validate accessor mode agreement and round-trip through source printing.
+- ✅ Named, inline and anonymous record index declarations retain names, types,
+  modes and class/default flags. Record accessor checks preserve type, mode,
+  default-value and count priority, including forwarded accessor signatures.
 - ✅ Ordinary class named/default `var` indices retain live caller storage. Eligible
   method/expression setters capture their receiver and indices before the RHS;
   later container rebinding keeps the captured slot and index exceptions skip the RHS.
   Opaque unchecked default receivers, cast-index dispatch and indexed field writers
-  remain open. Independent record index parsing and helper dispatch are incomplete.
+  remain open. Record index execution and helper dispatch are incomplete.
 - ✅ Interface named/default indices retain live caller storage, using the static
   interface accessor contract. Eligible writes capture receiver and indices before
   the RHS; existing compound paths reuse those references. Checked inherited and

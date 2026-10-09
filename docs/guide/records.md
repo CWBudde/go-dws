@@ -73,6 +73,35 @@ Count and overload diagnostics identify the written method name. Instance
 method type diagnostics count the implicit receiver as argument 0; see
 [Error messages](error-messages.md) for their positions.
 
+## Indexed property declarations
+
+Named, inline and anonymous records accept grouped value, `var` and `const` index
+parameters. Each modifier applies to its comma-separated names and resets after
+the semicolon:
+
+```pascal
+type TLookup = record
+  function Get(var key, offset: Integer; const limit: Integer): Integer;
+  begin
+    Result := key + offset + limit;
+  end;
+  property Item[var a, b: Integer; const c: Integer]: Integer read Get;
+end;
+```
+
+Accessor parameter names may differ from the property's names. Types, passing
+modes and default presence must agree; declaration errors check them in that
+order. Getter result checks come first, and setter Value modes/defaults are
+outside index equality. Forwarded properties validate the selected underlying
+accessor while retaining their own index signature. Record property printing
+preserves class/default flags and index groups.
+
+This declaration support does not complete record index execution. Caller
+references, expression accessors, forwarding and receiver capture remain open
+in [PLAN.md](../../PLAN.md). Missing composite array element types and completed
+property type failures in complete-inline/anonymous records also have separate
+recovery follow-ups; they are not covered by declaration acceptance.
+
 ## Helpers
 
 A nonstatic class method in a record helper receives a record type value as

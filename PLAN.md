@@ -474,8 +474,20 @@ punctuation in the parser before reading arguments.
     compound var-index support; compatibility/inherited writers remain open in 2.1.
   - [ ] Measure Variant/user conversion policy and remaining malformed index-tail
     recovery shapes beyond the retained direct binary RHS.
-  - [ ] Measure and complete the independent record declaration/runtime paths;
-    keep unsupported indexed helper dispatch and inherited writes explicitly open.
+  - [ ] Complete the independent record declaration/runtime paths.
+    - [x] Shared record index grammar, accessor signatures and immutable metadata
+      across named, inline and anonymous declarations; preserve reached members
+      before a stopped index list ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+    - [ ] Complete record index execution, reference capture, expression accessors
+      and forwarding; indexed helper dispatch and inherited writes remain open.
+    - [ ] Retain earlier completed-member diagnostics when a complete inline or
+      anonymous record's completed property type cannot resolve. Their existing
+      early returns still hide earlier accessor/body errors.
+  - [ ] Reject matched class accessor index defaults after type/mode agreement;
+    the record checker covers this case, but the class checker still accepts it.
+- [ ] Recover missing composite array element types with ordinary `Type expected`
+  and a Variant element, leaving the delimiter unread. Existing `array of ]`
+  recovery still produces a partial type and a later bracket stop.
 - [x] The `export` directive ([#472](https://github.com/CWBudde/go-dws/pull/472)).
   Preserve optional names, helper/linkage metadata and runnable bodies; reject repeated
   export on matching forward implementations with a genuine stop at the keyword,

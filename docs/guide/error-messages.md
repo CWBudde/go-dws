@@ -455,7 +455,7 @@ cutoff remains part of the broader compile-stop work.
 
 ### Property and operator declarations
 
-Class/interface property indices accept semicolon-separated value, `var` and
+Class/interface/record property indices accept semicolon-separated value, `var` and
 `const` groups. A modifier applies to every comma-separated name in its group.
 Empty brackets report ordinary `Parameters expected` at `]` and retain the
 property for later validation. Missing names, colons and closing brackets are
@@ -467,6 +467,14 @@ Accessor index types are checked before passing modes. A mismatch reports
 `Value-parameter expected`, then one incompatible-method summary at the accessor.
 The detail uses the property's parameter spelling and a zero-based index.
 Count, getter result and writer value/kind checks retain their earlier priority.
+Record accessor index defaults are checked after type/mode agreement; the setter's
+assigned Value is excluded from index mode/default equality. The corresponding
+class accessor-default check remains open. Record missing index types report
+ordinary `Type expected`; unknown named index types report ordinary `Unknown name`
+at the consumed type's end. Variant recovery preserves later reached checks.
+Stopped record lists retain reached index annotations and earlier completed-member
+diagnostics while skipping unread property types/accessors. Complete-inline and
+anonymous completed-property type failures still have separate recovery gaps.
 AST and source printing preserve the groups and modes. Ordinary class indexed
 access retains live caller storage for `var` indices and original index errors.
 Eligible method/expression setters capture receiver and indices before the RHS;
@@ -476,7 +484,7 @@ interface setters capture before the RHS, and existing compound callers reuse th
 prepared indices. Checked inherited/compatibility reads keep lexical accessor modes
 and ownership. Original runtime errors and exception state survive preparation.
 Aggregate/default interface receiver typing, opaque unchecked receivers, indexed
-field writers, record/helper paths and new compound/inherited writers remain open.
+field writers, record execution/helper paths and new compound/inherited writers remain open.
 
 A `var` index reads one term. An ungrouped outer operator reports `")" expected`
 at the first unread operator, including in square brackets, and skips later
