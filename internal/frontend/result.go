@@ -997,8 +997,7 @@ func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarl
 		return true, -1
 	}
 	if colonExpectedByLine[diag.Line] &&
-		(strings.Contains(diag.Message, "variable declaration requires a type or initializer") ||
-			strings.Contains(diag.Message, "must have either a type annotation or an initializer")) {
+		strings.Contains(diag.Message, "variable declaration requires a type or initializer") {
 		return true, -1
 	}
 	if dotExpectedByLine[diag.Line] && strings.Contains(diag.Message, "already declared") {
