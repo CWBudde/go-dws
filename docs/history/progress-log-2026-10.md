@@ -1,3 +1,63 @@
+## 2026-10-09 — Routine directive and body recovery (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) makes
+ordinary body-required procedure/function readers respect reached directive phases.
+A late/repeated qualifier or misplaced export stops at the rejected keyword with
+BEGIN expected. FORWARD at that boundary keeps its specific already-forward
+sentence. Calling-convention hints survive only when their phase was reached,
+including hints from earlier completed routines; repeated-forward registration
+carries a typed stopping diagnostic before an unreached qualifier hint.
+
+Interface methods accept their header without routine directives; a forbidden
+export, inline or overload is rejected by the enclosing END reader. Malformed
+GUID recovery remains local to its bracket owner. Member, forward, external and
+unit-interface bodyless contexts remain distinct. Qualified class implementations
+bind their already declared prototype even when a recovered header lacks a body;
+existing class STATIC handling and genuine duplicate/mismatch checks remain.
+
+Missing-BEGIN recovery retains the reached header/local/contract prefix. An
+explicit scalar AST marker lets an earlier unknown-name identifier in that
+retained prefix own the true Stop instead of leaking the provisional body error.
+Ordinary complete-body unknown-name handling is unchanged. EOF errors use the
+last real token; the existing unfinished-contract EOF exception remains.
+
+Public Compile tests require nil rejected Programs and complete ordered lists;
+frontend/parser/semantic controls also assert typed stops, retained AST/cursors,
+reached hints, real scopes and legal controls. Existing invalid pre-BEGIN nested
+routine and inline unit-interface test sources moved into actual body/implementation
+contexts while retaining their warning-order and import-visibility assertions.
+
+Pinned expectations derive from revision
+1dbf8a90329cc3f2638516e89c0668f916c1ddb9, without a Pascal executable oracle.
+Singleton explicitly overloaded-forward signature selection, broader unknown-name
+stops, unit lexer cutoff and remaining Phase 2 parents stay open. This slice does
+not add export metadata or full FASTCALL/REFERENCE language parity.
+
+Independent review found the completed-contract EOF exemption too broad; fix
+round 1 narrowed it and added actual public nil-Program/full-list and parser/
+frontend marker controls. Fix round 2 removed an always-true private helper result
+and moved two further ownership tests into supported contexts: a class method body
+in unit INTERFACE and a nested function inside Outer BEGIN. Enum identity/ordinal
+and all-node/lambda/main/generated ownership assertions remain. Both scoped
+re-reviews approved their corrections with no residual findings.
+
+Fresh full race/coverage, CI lint (zero issues), CLI acceptance and the complete
+CLI failure-set comparison pass on the reviewed tree. Tracked formatting,
+`go mod tidy`, `go generate ./pkg/ast` and diff checks pass; dependencies and the
+87-node visitor are unchanged. Parser coverage is 4,845/5,912 = 81.9520%, up from
+4,826/5,894 = 81.8799%; lexer remains 1,386/1,570 = 88.2803%.
+
+CLI remains 1,432 pass / 582 fail / 27 skip, with no new gains or regressions.
+Status generation produced Go 1,433/581/27 with BuildScripts 8; comparison of
+complete failure-name rows identifies only init_order1 as the extra pass. The
+following stable-baseline gate passes at 1,432/582/27 and matches every CLI category
+count and failure-name row. The updater's temporary BuildScripts floor of eight
+was restored to the established seven; the earlier check against that temporary
+floor failed and was rerun after restoration. Stable floors remain FailureScripts
+328, SimpleScripts 400 and BuildScripts 7. The existing Phase 5 ordering item now
+records init_order1 alongside the previously observed 2/4/5 variation, without
+ratcheting a varying gain.
+
 # Progress log — October 2026
 
 ## 2026-10-09 — Checked interface default receiver groups (PLAN 2.2)

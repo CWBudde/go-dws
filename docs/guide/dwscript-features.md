@@ -65,6 +65,13 @@ directive flags. Exported unit-interface routines retain implicit forwarding to
 their implementations; implementations do not repeat `export`. Combined linkage
 prints in `external; forward; export` order. Member declarations keep their existing directive rules.
 
+Ordinary body-required routines read calling qualifiers before `inline` and
+`deprecated`; a late/repeated clause stops at the required-body boundary. Reached
+local/contract prefixes and hints survive recovery, and completed prefixes at EOF
+still require a body. Interface method headers reject ordinary routine directives
+with an enclosing `END expected` stop; member, forward, external and unit-interface
+bodyless declarations retain their own contexts.
+
 ---
 
 ### Control Flow

@@ -445,13 +445,30 @@ their own declaration context. A matching unit-interface implementation follows
 the same rule. A semantic stop wins a parser-stop tie at the same position;
 an earlier parser stop still wins.
 
-General directive/body recovery remains separate work: misplaced `export` after
-calling qualifiers, `inline` or `deprecated` retains the existing expression
-diagnostic, and the interface-method reader still silently discards it. These
-cases do not acquire ordinary export metadata. The existing singleton
-explicit-overload forward registration can still reject a differing new
-signature by name; this routine-registration gap remains open. Unit-local lexer
-cutoff remains part of the broader compile-stop work.
+Ordinary body-required routines consume reached directive phases once: overload,
+linkage, export/helper, one calling qualifier, inline, then deprecated. A late or repeated
+clause stops at its keyword with `BEGIN expected`. A rejected `forward` instead
+reports `There is already a forward declaration of this function` as a compiler
+stop. Reached calling-convention hints remain before the stop; unreached qualifiers
+do not add hints.
+
+Missing-body recovery retains the reached header and local/contract prefix. An
+earlier unknown identifier in that retained prefix owns the stop and suppresses
+the provisional `BEGIN expected`. Completed contract clauses and valid locals at
+EOF require a body, anchored at the last real token. The established unfinished
+contract missing its condition semicolon keeps its existing semicolon-only error;
+exported routines still require a body.
+
+Interface method readers accept their header without ordinary routine directives;
+forbidden export, inline or overload clauses produce an enclosing `END expected`
+stop. Member, forward, external and unit-interface bodyless declarations retain
+their own contexts. Recovered qualified class implementations bind their validated
+prototype and preserve genuine duplicate/signature errors; existing class STATIC
+handling remains distinct.
+
+The singleton explicit-overload forward registration can still reject a differing
+new signature by name; that matching gap remains open. Unit-local lexer cutoff
+and the broader unknown-expression stop policy remain separate work.
 
 ### Property and operator declarations
 

@@ -501,10 +501,13 @@ punctuation in the parser before reading arguments.
   Preserve optional names, helper/linkage metadata and runnable bodies; reject repeated
   export on matching forward implementations with a genuine stop at the keyword,
   including malformed/EOF headers and unreached qualifier hints.
-- [ ] General routine directive/context recovery measured during export work:
-  misplaced late directives must stop at the directive with `BEGIN expected`,
-  and interface-method readers must reject forbidden directives instead of
-  silently discarding them. Ordinary export metadata does not fix these older paths.
+- [x] Measured routine directive/context recovery
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)): ordinary body-required
+  readers preserve reached phases, headers/local/contract prefixes and hints;
+  late directives stop with `BEGIN expected`, late `forward` keeps its specific
+  stopping sentence, and interface-method directives stop at enclosing `END`.
+  Completed contract prefixes at EOF require a body; retain the existing
+  unfinished-contract exception and legal member/forward/external/unit contexts.
 - [ ] Preserve signature matching for a lone explicitly overloaded forward before
   registering a differing new overload; existing single-forward replacement
   still matches by name. Reuse exact return/default matching without changing
@@ -708,8 +711,8 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
 ### 5.2 Fix groups — sized after 5.1
 
 - [ ] BuildScripts drivers.
-  - [ ] Make `init_order2`/`init_order4`/`init_order5` initialization/finalization ordering deterministic;
-    its varying pass must not raise the stable BuildScripts baseline.
+  - [ ] Make `init_order1`/`init_order2`/`init_order4`/`init_order5` initialization/finalization ordering deterministic;
+    their varying passes must not raise the stable BuildScripts baseline.
 - [ ] SimpleScripts.
 - [ ] ArrayPass.
 - [ ] Remaining categories.
