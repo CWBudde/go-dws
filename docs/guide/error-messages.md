@@ -483,11 +483,26 @@ access retains live caller storage for `var` indices and original index errors.
 Eligible method/expression setters capture receiver and indices before the RHS;
 an index exception skips the RHS and setter. Interface named/default calls also
 retain original index storage and use the static interface accessor contract. Eligible
-interface setters capture before the RHS, and existing compound callers reuse the
+interface setters capture before the RHS, and existing Go compound callers reuse the
 prepared indices. Checked inherited/compatibility reads keep lexical accessor modes
 and ownership. Original runtime errors and exception state survive preparation.
-Aggregate/default interface receiver typing, opaque unchecked receivers, indexed
-field writers, record execution/helper paths and new compound/inherited writers remain open.
+
+Checked default interface calls also accept already typed expression and aggregate
+receivers. In `Receivers[slot][i, j][resultSlot]`, the middle group supplies the
+property arguments; earlier receiver and later result brackets stay separate.
+A later bracket cannot supply a missing property argument, and an extra comma
+operand remains an extra argument. Default count errors report `More arguments
+expected` or `Too many arguments` at the current property's opening `[`, after
+reached operands and selected-signature type/storage checks. Mismatched value/const
+groups use these count checks; matching-count validation keeps its existing policy.
+Recognized empty groups keep ordinary count recovery and later diagnostics, while
+ordinary arrays and genuine child/enclosing stops retain their cutoff. Declined
+receiver probes do not repeat diagnostics or symbol usages.
+
+Class-object element coercion into typed interface arrays remains incomplete;
+storing already interface-typed elements works. Opaque unchecked receivers, indexed
+field writers, record execution/helper paths and remaining compound/inherited writes
+remain open.
 
 A `var` index reads one term. An ungrouped outer operator reports `")" expected`
 at the first unread operator, including in square brackets, and skips later

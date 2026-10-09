@@ -442,10 +442,14 @@ failed property reads, right-hand sides, and compound operations skip the write.
   remain open. Record index execution and helper dispatch are incomplete.
 - ✅ Interface named/default indices retain live caller storage, using the static
   interface accessor contract. Eligible writes capture receiver and indices before
-  the RHS; existing compound paths reuse those references. Checked inherited and
+  the RHS; existing Go compound paths reuse those references. Checked inherited and
   compatibility reads retain lexical accessor ownership and original errors.
-  Aggregate/default interface receiver typing, new ordinary class compound support
-  and compatibility/inherited writers remain open.
+- ✅ Checked default interface indexing after typed expressions and array elements
+  keeps one declared comma group and separate receiver/result brackets. Static
+  accessor selection and original slots survive later receiver/container rebinding.
+  Empty groups retain ordinary count recovery; declined probes record receivers once.
+  Class-element interface-array coercion, opaque unchecked receivers, remaining
+  ordinary class compound behavior and compatibility/inherited writers remain open.
 - ✅ Class/default/interface and inherited compatibility index checking retains
   parentheses and reports the first unread operator for a `var` index. Use `(i)`
   to retain variable storage; `(i + 1)` consumes the expression but cannot supply
@@ -496,7 +500,9 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Interface inheritance
 - ✅ Multiple implementation
 - ✅ as/is operators
-- ⏸️ Interface properties
+- ✅ Named/default indexed interface properties, including checked typed
+  expression/aggregate receivers and caller references
+- ⏸️ Remaining interface property contexts
 - ⏸️ GUIDs
 - ⏸️ `implements` (delegation)
 - ⏸️ Method resolution clauses

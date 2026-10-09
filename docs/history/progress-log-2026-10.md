@@ -1,5 +1,72 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Checked interface default receiver groups (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) selects
+the default property from an already typed interface receiver after expression or
+aggregate indexing. One comma-separated bracket group supplies the declared
+property arguments; earlier receiver brackets and later result brackets remain
+separate. A variable aggregate that previously failed Compile with Array expected,
+and an array-returning call that compiled but failed Run with Get-2/got-1, now
+Compile and Run through the public API with exact output 6/6/RJGK.
+
+The selected static interface accessor survives a different dynamic class P and
+default Q. Reads and eligible writes retain the original receiver and var storage
+before later indices/RHS rebind them. Existing Go compound paths reuse one prepared
+list; their execution controls do not claim upstream compound legality. Receiver,
+index and RHS failures skip later effects and retain original ErrorValue and
+execution-context exception identity. Nil dispatch retains its existing order.
+
+Few, extra and empty default groups report accessor argument counts at the current
+opening bracket. Extra operands are reached before late checking; type/storage errors
+suppress count. Mismatched value/const groups use that same selected-signature
+checker while matching-count behavior retains its existing policy. Split brackets
+cannot borrow missing property arguments; only their source-pinned primary is
+asserted, without inventing a full later-bracket Pascal recovery cascade.
+
+A neutral exact-node semantic marker resolves provisional empty-group parser stops
+for actually selected properties. Ordinary arrays, declined/unvisited groups and
+true child/enclosing stops retain cutoff; later directives and terminal forwards
+remain reachable after a recovered property group. The original compatibility
+binding is unchanged. Probe results are consumed once, including nil and absent
+default properties; distinct source occurrences remain distinct. No runtime values
+enter immutable metadata and shared CollectIndices is unchanged.
+
+Nine checked public receiver shapes, capture/access/failure/nil/grouping and
+recovery controls pass, supplemented by reached-use/Stop/AfterChildren assertions
+and metadata reset/concurrent-read checks. Initial self-review reproduced and fixed
+a declined no-default receiver visited twice. Fresh independent task review approves
+the eleven-file implementation with no findings. Root's combined recovered-empty plus
+later index-child Stop probe asserts nil Program and both full positioned errors,
+with the later lexer directive and Pending forward excluded.
+
+The initial broader check exposed two semantic tests that expressly expected a
+preexisting duplicate receiver diagnostic. An immutable old/new CLI comparison
+confirmed identical public lists and acceptance. The tests now require exactly
+one raw diagnostic, with paired public accepted/non-nil and rejected/nil controls.
+A test-only identity assertion helper retains all twelve original failure cases
+and resolves lint complexity/type-declaration findings. Scoped correction review
+approves all three findings without new breakage.
+
+Final validation passes: full `go test -race -count=1 -coverprofile=.cache/phase30-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and complete failure-set comparison,
+tracked formatting, `go mod tidy`, deterministic visitor generation, fixture regeneration
+and the following fixture gate. CLI and both Go fixture runs report 1,432 passes,
+582 failures and 27 skips; the Go category failure-name rows/counts agree with the
+CLI, and no CLI gain or regression occurs against the prior class-default child.
+Baselines remain unchanged at FailureScripts 328, SimpleScripts 400 and BuildScripts 7.
+Coverage remains parser 4,826/5,894 = 81.8799% and lexer 1,386/1,570 = 88.2803%;
+dependencies and generated visitor code are unchanged.
+
+Only the measured checked receiver/group child closes; the parent stays open.
+A named-target immutable baseline confirms Receivers := [Second] still fails runtime
+class-element-to-interface array coercion. That remains a separately doable
+prerequisite; capture controls store already interface-typed O via [O]. Opaque
+unchecked receivers, cast/static-owner and bare-factory typing, record/helper paths,
+field writers, combined indices/index directives and compatibility/inherited writes
+remain open. Pinned source revision is 1dbf8a90329cc3f2638516e89c0668f916c1ddb9;
+no Pascal executable oracle ran.
+
 ## 2026-10-09 — Class property accessor index defaults (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) rejects
