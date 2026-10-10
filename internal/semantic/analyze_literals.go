@@ -299,6 +299,9 @@ func (a *Analyzer) stopArrayLiteral(lit *ast.ArrayLiteralExpression, index int, 
 	err := NewIncompatibleTypesPairError(pos,
 		semanticTypeNameForDiagnostic(actual), semanticTypeNameForDiagnostic(previous))
 	err.AfterChildren = true
+	// Upstream raises the stop once the element is read, so the element's own
+	// diagnostics precede it although they display after Pos (array_of_proc2).
+	err.Cursor = lit.Elements[index].End()
 	a.addCompilerStop(err)
 }
 

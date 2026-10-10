@@ -140,6 +140,37 @@ PrintLn(Undefined);
 				`Syntax Error: There is no accessible member with name "Hello" for type String [line: 4, column: 13]`,
 			},
 		},
+		{
+			// go-dws checks a helper's visibility sections before its inline
+			// method bodies, so the hint is emitted before the stop. Upstream
+			// reads the body first and never reaches the second section.
+			name: "an early-emitted hint after the stop is cut",
+			source: `type TH = helper for Integer
+  function P: Integer; begin Result := Foo; end;
+  public
+  function Q: Integer;
+end;
+function TH.Q: Integer; begin Result := 1; end;
+`,
+			want: []string{`Syntax Error: Unknown name "Foo" [line: 2, column: 40]`},
+		},
+		{
+			// FailureScripts/array_of_proc2: AddElementExpr raises its stop
+			// after reading the element, so the element's own diagnostic
+			// survives although it displays after the stop.
+			name: "an after-children stop cuts at its scanner cursor",
+			source: `procedure Test(Data: array of Float);
+begin
+end;
+
+Test([1, Test]);
+PrintLn(Undefined);
+`,
+			want: []string{
+				`Syntax Error: More arguments expected [line: 5, column: 10]`,
+				`Syntax Error: Incompatible types: "void" and "Integer" [line: 5, column: 9]`,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

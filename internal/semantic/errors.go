@@ -115,6 +115,10 @@ type SemanticError struct {
 	AfterChildren bool
 	// Stop marks a diagnostic that abandons compilation after its child errors.
 	Stop bool
+	// Cursor is the scanner position upstream had reached when it raised this
+	// stop, where it is past Pos: an after-children stop displayed at the start
+	// of a construct it has already read. The frontend cuts there. Zero means Pos.
+	Cursor lexer.Position
 }
 
 // IsWarning returns true if this is a warning (non-critical issue)
