@@ -67,7 +67,8 @@ messages (`:12764-12766`). A directive after an earlier stop is never read.
 
 go-dws runs lexer, parser and analyzer as separate passes. The lexer also runs ahead of the
 parser. The parser marks what a stop cut short, the analyzer genuinely halts at its own stops,
-and the frontend makes a position cut per source file before ordering the result.
+and the frontend makes one position cut per source file, at the earliest stop of either phase,
+before ordering the result.
 
 ### 2.1 Parser `stopped()`
 
@@ -131,33 +132,41 @@ provisional parser stops (`dropProvisional`, `result.go:347`).
   context the unwinding skipped. `recoverCompileStop` ends an entry point. Deferred bodies
   declared before the stop still run (`insertionPrecedesStop`), because upstream compiled them
   first.
-- 31 sites raise a stop, among them `"(" expected`, `Not a method`, `Class reference expected`,
-  member-not-found (`NewAccessibleMemberError`, `CPE_UnknownMemberForType`), cast targets and
-  the deferred boundary call above (all through `addCompilerStop` / `addPunctuationStop`).
+- About 45 sites raise a stop, among them the unknown name in an expression (`ReadName`),
+  `"(" expected`, `Not a method`, `Class reference expected`, member-not-found
+  (`NewAccessibleMemberError`, `CPE_UnknownMemberForType`), cast targets and the deferred
+  boundary call above (all through `addCompilerStop` / `addPunctuationStop` /
+  `raiseCompileStop`).
+- `SemanticError.Cursor` is the scanner position upstream had reached when it raised a stop,
+  where that lies past the displayed position. Only `stopArrayLiteral`
+  (`analyze_literals.go:292`) sets it: `AddElementExpr` displays its stop at the start of the
+  element it has already read, so the element's own diagnostics come first although they are
+  displayed after it (`array_of_proc2`).
 - `compileStopped()` is true after a raised stop or when `skipEndOfProgramChecks` is set. It
   guards the end-of-program checks: `reportUnimplementedForwards` (`analyzer.go:593`),
   `validateForwardDeclarations` (`:608`) and `validateForwardMethods` (`:629`).
   `skipEndOfProgramChecks` is set by `SetCompileStopped` (`:719`, from the frontend when the
-  parser stopped, for the program and every unit), by `analyzeTruncatedCall`, and by the
-  unknown name in an expression (`analyze_expr_operators.go:296`). The unknown name is still
-  not a raised stop: fixture-pinned diagnostics of the enclosing reads follow it.
-- `frontend.semanticDiagnostics` (`result.go:824`) still stops collecting at the first stop
-  diagnostic (`:864`). Deferred bodies run after a top-level stop is raised, so their
-  diagnostics are emitted after it; the `break` removes them.
+  parser stopped, for the program and every unit) and by `analyzeTruncatedCall`.
+- `frontend.semanticDiagnostics` (`result.go:843`) collects every semantic diagnostic; it no
+  longer stops at the first stop. Deferred bodies positioned after a stop never run
+  (`insertionPrecedesStop`), so whatever else the analyzer emitted out of source order is left
+  to the frontend's cut.
 
 ### 2.4 Frontend (`internal/frontend/result.go`)
 
 `compileParsedResult` (`:303`) runs analysis, then for the main file:
 
 1. `dropProvisional` removes the provisional parser stops of §2.2.
-2. `dropDiagnosticsAfterStop` (`:372`) is the one position cut. It finds the earliest stop of
-   either phase; at a tie the analyzer's stop wins, because the analyzer only reaches a parser
-   stop's token through a carrier the parser left it to decide (an interrupted typed constant
-   initializer, `const C: R = ;`, is a record constant's `"(" expected` upstream, not the
-   parser's `Expression expected`).
-   - a parser stop cuts the semantic diagnostics after it;
-   - an analyzer stop cuts the parser diagnostics, including directive diagnostics, at or
-     after it.
+2. `dropDiagnosticsAfterStop` (`:377`) is the one position cut. It finds the earliest stop of
+   either phase, by its cut position (`Cursor` when set, §2.3, else its display position), and
+   drops every diagnostic of every phase positioned after it, directive diagnostics included.
+   That covers semantic diagnostics the analyzer emitted *before* reaching the stop: go-dws
+   checks a helper's visibility sections before analyzing its inline method bodies, so a
+   redundant-specifier hint after a stop in such a body is emitted first, but upstream never
+   reads it. At a tie the analyzer's stop wins and also cuts the parser diagnostics at its
+   position, because the analyzer only reaches a parser stop's token through a carrier the
+   parser left it to decide (an interrupted typed constant initializer, `const C: R = ;`, is a
+   record constant's `"(" expected` upstream, not the parser's `Expression expected`).
 3. `restoreStatementWarningOrder` (`diagnostic_boundary.go:10`) moves the semantic prefix ahead
    of the parser boundary for statement-boundary warnings.
 4. `sortDiagnostics` (`:464`), a stable sort with roughly ten rules: directive vs. advisory,
@@ -168,9 +177,8 @@ provisional parser stops (`dropProvisional`, `result.go:347`).
    `sortDiagnostics` again. `filterDiagnostics` is a set of **text filters**: `Name expected`
    dedup within 8 columns; `Expression expected before COLON`; the `must have either a type
    annotation` / `variable declaration requires a type` filter; `already declared` after
-   `Dot "." expected`; unknown-type relocation onto `";" expected`; unfinished-class-body
-   suppression after `Unknown name` (still needed by `param_partial3`, because the unknown name
-   is not a raised stop); visible/accessible member dedup; `expected 'end' to close unit
+   `Dot "." expected`; unknown-type relocation onto `";" expected`; visible/accessible member
+   dedup; `expected 'end' to close unit
    declaration` after a fatal.
 
 ### 2.5 Lexer cutoff and units
@@ -217,16 +225,16 @@ tokenization instead (`StoppedByFatal`), and the parser suppresses the truncatio
 
 **Status.** Steps 1 and 2 are in place for the call forms and the sites listed in §2.2–§2.3;
 `refineTypePunctuationDiagnostics` and `refineDeferredPropertyCallDiagnostics` are deleted.
-Still open:
+The `semanticDiagnostics` `break` and the class-body text filter are deleted; the main file's
+cut now covers every phase. Still open:
 
-- The unknown name in an expression sets `skipEndOfProgramChecks` but does not unwind, so the
-  `semanticDiagnostics` `break` and the class-body text filter stay.
 - The statement-boundary call keeps a provisional parser error as the parse-only fallback,
   and `confirmDeferredCallStops` for nested lists.
-- `{$FATAL}` and malformed constants are not stops in the cut, and the cut is still by display
-  position; the completion-point rule (step 3) covers only blocks cut by a missing `END`.
+- `{$FATAL}` and malformed constants are not stops in the cut, and the cut is by display
+  position except for stops that carry a `Cursor`; the completion-point rule (step 3) covers
+  only blocks cut by a missing `END`.
 - `dropDiagnosticsAfterStop` and `reachedLexerDiagnostics` remain as two halves of the cut;
-  the text filters in `filterDiagnostics` remain.
+  the remaining text filters in `filterDiagnostics` remain.
 
 ## 4. Invariants
 
@@ -261,7 +269,8 @@ preserve them.
 | `FailureScripts/block_unfinished2` | Target (completion point, §3.3) | Passes |
 | `FailureScripts/array_index_bracket_missing1` | Must keep passing | Passes: the truncated `[…]` is never analyzed |
 | `FailureScripts/constructor_invalid_param` | Must keep passing | Passes: no arity check on the truncated `new TMyClass(1 1` |
-| `FailureScripts/param_partial3` | Must keep passing | Passes through the class-body text filter (§2.4) |
+| `FailureScripts/param_partial3` | Must keep passing | Passes: the unknown name is an analyzer stop, so the cut drops the unfinished class body |
+| `FailureScripts/array_of_proc2` | Must keep passing | Passes: the array-element stop cuts at its `Cursor` (§2.3) |
 | `FailureScripts/static_methods` | Known divergence, not a target | Upstream omits its own `{$FATAL}` line (`docs/decisions/known-divergences.md`) |
 
 Run `--classify` after each step, and move the newly isolated first-diagnostic gaps into
