@@ -464,6 +464,19 @@ func NewAccessibleMemberError(pos lexer.Position, memberName, typeName string) *
 	}
 }
 
+// NewUnknownMethodForTypeError creates upstream's CPE_UnknownMethodForType
+// diagnostic, raised for a call on an enumeration type name.
+func NewUnknownMethodForTypeError(pos lexer.Position, methodName, typeName string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorVisibility,
+		Message:      fmt.Sprintf(`There is no accessible method with name "%s" for type %s`, methodName, typeName),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: methodName,
+		TypeName:     typeName,
+	}
+}
+
 // NewAbstractInstantiationError creates the DWScript abstract-instantiation diagnostic.
 func NewAbstractInstantiationError(pos lexer.Position) *SemanticError {
 	return &SemanticError{

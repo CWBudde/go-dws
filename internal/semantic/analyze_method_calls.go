@@ -26,6 +26,7 @@ func (a *Analyzer) analyzeStopDeferredCall(expr *ast.MethodCallExpression) types
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	a.stopEnumerationTypeCall(expr)
 	if expr.Truncated {
 		if name, ok := expr.Object.(*ast.Identifier); ok && !a.specialFunctionHasShadow(name.Value) {
 			return a.analyzeTruncatedCall(expr.Arguments)
@@ -111,6 +112,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 	if expr.Truncated {
+		// Upstream resolves the member before ReadArguments stops, so its
+		// casing hint precedes the stop (FailureScripts/params3).
+		if propertyClass != nil {
+			a.addIdentifierCaseHint(expr.Method, a.declaredClassMemberName(propertyClass, expr.Method.Value))
+		}
 		return a.analyzeTruncatedCall(expr.Arguments)
 	}
 
@@ -520,4 +526,29 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return classType
 	}
 	return methodType.ReturnType
+}
+
+// stopEnumerationTypeCall mirrors upstream's ReadEnumerationSymbolName: on an
+// enumeration type name, `TEnum.Name(` is accepted only as `ByName(…)` or an
+// empty `()` pair. Any other call stops at the member before its arguments are
+// read, so the stop precedes a truncated argument list's own stop.
+func (a *Analyzer) stopEnumerationTypeCall(expr *ast.MethodCallExpression) {
+	if !expr.Truncated && len(expr.Arguments) == 0 {
+		return
+	}
+	name, ok := expr.Object.(*ast.Identifier)
+	if !ok || expr.Method == nil || ident.Equal(expr.Method.Value, "ByName") {
+		return
+	}
+	// Only the type's own name: a variable, parameter or member of that
+	// enumeration type resolves to an ordinary symbol.
+	symbol, found := a.symbols.Resolve(name.Value)
+	if !found || !symbol.IsEnumTypeName {
+		return
+	}
+	enumType, ok := symbol.Type.(*types.EnumType)
+	if !ok {
+		return
+	}
+	a.addCompilerStop(NewUnknownMethodForTypeError(expr.Method.Token.Pos, expr.Method.Value, enumType.Name))
 }
