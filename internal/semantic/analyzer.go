@@ -410,6 +410,17 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 	a.registerBuiltinType("IInterface", iinterface)
 }
 
+// deferredProgramFunction retains a routine's source scope and diagnostic
+// insertion point while its body waits for top-level signatures.
+type deferredProgramFunction struct {
+	returnType types.Type
+	decl       *ast.FunctionDecl
+	insertion  *diagnosticInsertion
+	lookup     sourceScopeSnapshot
+	paramTypes []types.Type
+	analyze    bool
+}
+
 // Analyze performs semantic analysis on a program.
 func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	if program == nil {
@@ -441,15 +452,7 @@ func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	//
 	// Inline methods use the same insertion points, while their bodies still
 	// wait for all top-level class members to be registered.
-	type deferredFunc struct {
-		lookup     sourceScopeSnapshot
-		returnType types.Type
-		decl       *ast.FunctionDecl
-		paramTypes []types.Type
-		analyze    bool
-		insertion  *diagnosticInsertion
-	}
-	deferred := make(map[*ast.FunctionDecl]deferredFunc)
+	deferred := make(map[*ast.FunctionDecl]deferredProgramFunction)
 
 	// Pass 1: register signatures, analyze non-function declarations and top-level statements.
 	// Inline class method bodies are deferred until the last top-level class
@@ -473,7 +476,7 @@ func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 			if a.analyzeUntilStop(func() { paramTypes, returnType, regOK = a.registerFunctionSignature(fd) }) {
 				break
 			}
-			deferred[fd] = deferredFunc{
+			deferred[fd] = deferredProgramFunction{
 				decl:       fd,
 				lookup:     a.captureSourceScope(a.symbols),
 				paramTypes: paramTypes,
@@ -497,21 +500,7 @@ func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	a.drainDeferredMethodBodies()
 
 	// Pass 2 restores routine diagnostics at their declaration insertion points.
-	for _, stmt := range program.Statements {
-		fd, ok := stmt.(*ast.FunctionDecl)
-		if !ok {
-			continue
-		}
-		df, tracked := deferred[fd]
-		if !tracked || !df.analyze {
-			continue
-		}
-		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
-			restore := df.lookup.activate()
-			defer restore()
-			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
-		})
-	}
+	a.analyzeDeferredProgramFunctions(program, deferred)
 
 	a.suppressSelfAssignmentAfterErrors()
 	a.reportUnimplementedForwards(a.symbols)
@@ -535,6 +524,24 @@ func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	}
 
 	return nil
+}
+
+func (a *Analyzer) analyzeDeferredProgramFunctions(program *ast.Program, deferred map[*ast.FunctionDecl]deferredProgramFunction) {
+	for _, stmt := range program.Statements {
+		fd, ok := stmt.(*ast.FunctionDecl)
+		if !ok {
+			continue
+		}
+		df, tracked := deferred[fd]
+		if !tracked || !df.analyze {
+			continue
+		}
+		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
+			restore := df.lookup.activate()
+			defer restore()
+			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		})
+	}
 }
 
 func (a *Analyzer) isPredeclaredClassType(className string) bool {

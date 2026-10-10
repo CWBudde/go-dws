@@ -90,6 +90,10 @@ type ClassDecl struct {
 	IsDeprecated   bool
 	IsStaticClass  bool
 	IsExternal     bool
+	// AncestryTruncated marks an ancestry list cut short by a compiler stop.
+	// Its reached names are retained; the body and class completion checks
+	// were never reached.
+	AncestryTruncated bool
 }
 
 func (cd *ClassDecl) statementNode() {}

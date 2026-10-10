@@ -13,6 +13,10 @@ func containsParserRecovery(expr ast.Expression) bool {
 	}
 	found := false
 	ast.Inspect(expr, func(n ast.Node) bool {
+		// Inspect may visit later siblings after pruning a matched child.
+		if found {
+			return false
+		}
 		switch node := n.(type) {
 		case *ast.InvalidExpression:
 			found = true

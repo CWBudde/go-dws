@@ -51,6 +51,9 @@ type Diagnostic struct {
 	Length   int
 	Severity Severity
 	Fatal    bool
+	// sourceFile identifies diagnostics collected from one source. Its pointer
+	// is compile-local identity; empty or equal display names do not merge files.
+	sourceFile *string
 	// BlocksSemantic marks parser diagnostics that should stop semantic analysis
 	// because the recovered AST/result is not trustworthy enough to continue.
 	BlocksSemantic bool
@@ -330,6 +333,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	result.SemanticInfo = analyzer.GetSemanticInfo()
 	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
 	mainDiagnostics = dropDiagnosticsAfterStop(append(dropProvisional(mainDiagnostics), semanticDiagnostics(analyzer)...))
+	setDiagnosticSource(mainDiagnostics, opts.Filename)
 	restoreStatementWarningOrder(mainDiagnostics)
 	sortDiagnostics(mainDiagnostics)
 	restoreDeclarationDiagnosticOrder(mainDiagnostics)
@@ -483,6 +487,12 @@ func isSemanticAdvisory(diag Diagnostic) bool {
 	return diag.Phase == PhaseSemantic && diag.Severity != SeverityError && diag.Line != 0
 }
 
+func setDiagnosticSource(diags []Diagnostic, filename string) {
+	for i := range diags {
+		diags[i].sourceFile = &filename
+	}
+}
+
 func sortDiagnostics(diags []Diagnostic) {
 	sort.SliceStable(diags, func(i, j int) bool {
 		left := diags[i]
@@ -598,6 +608,33 @@ func sortDiagnostics(diags []Diagnostic) {
 		}
 		return false
 	})
+	restoreParserStopDiagnosticOrder(diags)
+}
+
+// restoreParserStopDiagnosticOrder moves only parser stops after the ordinary
+// semantic checks reached at their own source anchor. Keeping this out of the
+// comparator avoids conflicting with phase priority across different sources.
+func restoreParserStopDiagnosticOrder(diags []Diagnostic) {
+	for i := len(diags) - 1; i >= 0; i-- {
+		stop := diags[i]
+		if stop.Phase != PhaseParsing || !stop.Stop || stop.Severity != SeverityError || stop.sourceFile == nil {
+			continue
+		}
+		last := i
+		for j := i + 1; j < len(diags); j++ {
+			diag := diags[j]
+			if diag.Phase == PhaseSemantic && !diag.Stop && diag.Severity == SeverityError &&
+				diag.sourceFile == stop.sourceFile && diag.Line == stop.Line && diag.Column == stop.Column {
+				last = j
+			}
+		}
+		if last > i {
+			// Shift the intervening diagnostics together so their relative
+			// order remains unchanged, including diagnostics from other sources.
+			copy(diags[i:last], diags[i+1:last+1])
+			diags[last] = stop
+		}
+	}
 }
 
 func diagnosticArgumentCountPriority(diag Diagnostic) int {

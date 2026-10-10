@@ -118,6 +118,24 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 
 	// Parse comma-separated list of parent/interfaces
 	identifiers := []*ast.Identifier{}
+	defer func() {
+		// Every completed entry was checked upstream before the closer was
+		// read. Preserve that prefix even when the list ends at a stop.
+		classDecl.AncestryTruncated = p.stopped()
+		if len(identifiers) == 0 {
+			return
+		}
+		firstIdent := identifiers[0]
+		firstChar := firstIdent.Value[0]
+		if isBuiltinClass(firstIdent.Value) || firstChar == 'T' || firstChar == 't' {
+			if classDecl.Parent == nil {
+				classDecl.Parent = firstIdent
+			}
+			classDecl.Interfaces = append(classDecl.Interfaces, identifiers[1:]...)
+		} else {
+			classDecl.Interfaces = append(classDecl.Interfaces, identifiers...)
+		}
+	}()
 
 	for {
 		if cursor.Peek(1).Type != lexer.IDENT {
@@ -179,28 +197,6 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 		}
 	}
 
-	// Distinguish parent class from interfaces
-	//
-	// Convention: First identifier is parent class if:
-	//   1. It's a built-in class (Exception, EConvertError, etc.), OR
-	//   2. It starts with 'T' (TObject, TMyClass, etc.)
-	// Otherwise, all identifiers are treated as interfaces
-	if len(identifiers) > 0 {
-		firstIdent := identifiers[0]
-		// Check if first identifier is a built-in class or starts with 'T' (case-insensitive)
-		firstChar := firstIdent.Value[0]
-		if isBuiltinClass(firstIdent.Value) ||
-			(len(firstIdent.Value) > 0 && (firstChar == 'T' || firstChar == 't')) {
-			// First identifier is the parent class
-			if classDecl.Parent == nil {
-				classDecl.Parent = firstIdent
-			}
-			classDecl.Interfaces = append(classDecl.Interfaces, identifiers[1:]...)
-		} else {
-			// No parent class, all are interfaces
-			classDecl.Interfaces = append(classDecl.Interfaces, identifiers...)
-		}
-	}
 }
 
 // isBuiltinClass checks if a class name is a built-in class that doesn't follow
@@ -424,6 +420,10 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	p.parseClassParentAndInterfaces(classDecl)
 	cursor = p.cursor
+	if p.stopped() {
+		builder.Finish(classDecl)
+		return classDecl
+	}
 
 	// Check for 'abstract' keyword
 	if cursor.Peek(1).Type == lexer.ABSTRACT {
@@ -433,6 +433,10 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		// Check again for parent/interfaces after abstract
 		p.parseClassParentAndInterfaces(classDecl)
 		cursor = p.cursor
+		if p.stopped() {
+			builder.Finish(classDecl)
+			return classDecl
+		}
 	}
 
 	// Check for 'external' keyword
@@ -455,6 +459,10 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		// Check again for parent/interfaces after external
 		p.parseClassParentAndInterfaces(classDecl)
 		cursor = p.cursor
+		if p.stopped() {
+			builder.Finish(classDecl)
+			return classDecl
+		}
 	}
 
 	// Check for forward declaration: type TForward = class;

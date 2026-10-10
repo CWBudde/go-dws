@@ -205,16 +205,37 @@ func (a *Analyzer) analyzeInterfacePropertyDecl(prop *ast.PropertyDecl, iface *t
 	iface.Properties[propKey] = propInfo
 }
 
+// resolveClassInterface validates one reached interface name in class ancestry.
+// It is independent of the class body, which may not have been read yet.
+func (a *Analyzer) resolveClassInterface(ifaceIdent *ast.Identifier, decl *ast.ClassDecl) *types.InterfaceType {
+	ifaceName := ifaceIdent.Value
+	ifaceType := a.getInterfaceType(ifaceName)
+	if ifaceType != nil {
+		return ifaceType
+	}
+	if typ, err := a.resolveType(ifaceName); err == nil && typ != nil {
+		a.addStructuredError(&SemanticError{
+			Type:     ErrorInterface,
+			Message:  `"` + ifaceName + `" is not an interface`,
+			Pos:      ifaceIdent.Token.Pos,
+			Severity: SeverityError,
+		})
+	} else {
+		a.addError("interface '%s' not found at %s", ifaceName, decl.Token.Pos.String())
+	}
+	return nil
+}
+
 // validateInterfaceImplementation validates that a class implements all required interface methods
 func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, decl *ast.ClassDecl) {
 	// For each interface declared on the class
 	for _, ifaceIdent := range decl.Interfaces {
 		ifaceName := ifaceIdent.Value
 
-		// Lookup the interface type (use lowercase for case-insensitive lookup)
+		// The ancestry name was checked before member analysis. Completion
+		// checks only consume successfully resolved interfaces here.
 		ifaceType := a.getInterfaceType(ifaceName)
 		if ifaceType == nil {
-			a.addError("interface '%s' not found at %s", ifaceName, decl.Token.Pos.String())
 			continue
 		}
 

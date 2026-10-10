@@ -22,7 +22,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	var existingLoopVarType types.Type
 	if !stmt.InlineVar {

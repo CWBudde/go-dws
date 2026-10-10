@@ -90,6 +90,51 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	var bodies []*ast.FunctionDecl
 	bodyInsertions := make(map[*ast.FunctionDecl]*diagnosticInsertion)
 	bodyLookups := make(map[*ast.FunctionDecl]sourceScopeSnapshot)
+	recordBody := func(decl *ast.FunctionDecl) {
+		bodies = append(bodies, decl)
+		bodyInsertions[decl] = a.newDiagnosticInsertion()
+		bodyLookups[decl] = a.captureSourceScope(a.symbols)
+	}
+	if err := a.analyzeUnitPublicSection(publicSection, normalizedUnits, imported, interfaceFunctions, recordBody); err != nil {
+		return err
+	}
+	a.publishUnitSymbols(unit, exports, beforeTypes)
+
+	// Private declarations and implementation-only imports never become exports.
+	a.symbols = NewEnclosedSymbolTable(exports)
+	a.symbols.outerBeforeImports = true
+	implemented := make(map[*ast.FunctionDecl]bool)
+	if err := a.analyzeUnitImplementationSection(implementationSection, normalizedUnits, imported, interfaceFunctions, implemented, recordBody); err != nil {
+		return err
+	}
+	a.analyzeUnitRoutineBodies(bodies, bodyInsertions, bodyLookups)
+	// Interface implementations were matched above rather than through
+	// DefineOverload, so settle their forward state here; what remains
+	// forward was never implemented.
+	for decl := range implemented {
+		exports.resolveForwardAt(decl.Name.Value, decl.Name.Token.Pos)
+	}
+	a.analyzeUnitLifecycleSections(unit)
+	// DWScript checks forwards once the whole unit has been read, so these
+	// follow the unit's other diagnostics.
+	a.reportUnimplementedForwards(exports, a.symbols)
+	// The importing program must not report them again.
+	exports.resolveForwards()
+	if a.hasActualErrors() {
+		return &AnalysisError{Errors: a.errors}
+	}
+	return nil
+}
+
+// analyzeUnitPublicSection registers public declarations in source order and
+// records executable bodies at their declaration insertion points.
+func (a *Analyzer) analyzeUnitPublicSection(
+	publicSection *ast.BlockStatement,
+	normalizedUnits map[string]*SymbolTable,
+	imported map[string]string,
+	interfaceFunctions map[string][]*ast.FunctionDecl,
+	recordBody func(*ast.FunctionDecl),
+) error {
 	if publicSection != nil {
 		for _, stmt := range publicSection.Statements {
 			if a.stopped {
@@ -106,19 +151,25 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					a.addError("function declaration missing name")
 					continue
 				}
+				// Recover here so bodies registered before this signature still
+				// run at their source-order diagnostic insertion points.
+				if a.analyzeUntilStop(func() { a.registerFunctionSignature(decl) }) {
+					break
+				}
 				name := ident.Normalize(decl.Name.Value)
 				interfaceFunctions[name] = append(interfaceFunctions[name], decl)
-				a.registerFunctionSignature(decl)
 				if decl.Body != nil {
-					bodies = append(bodies, decl)
-					bodyInsertions[decl] = a.newDiagnosticInsertion()
-					bodyLookups[decl] = a.captureSourceScope(a.symbols)
+					recordBody(decl)
 				}
 			} else {
 				a.analyzeTopLevelStatement(stmt)
 			}
 		}
 	}
+	return nil
+}
+
+func (a *Analyzer) publishUnitSymbols(unit *ast.UnitDeclaration, exports *SymbolTable, beforeTypes map[string]types.Type) {
 	exports.exportedTypes = make(map[string]types.Type)
 	for name, typ := range a.typeRegistry.AllTypes() {
 		if descriptor, ok := a.typeRegistry.ResolveDescriptor(name); ok && descriptor.importedFrom == "" {
@@ -136,11 +187,18 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 		return true
 	})
 	a.unitSymbols[ident.Normalize(unit.Name.Value)] = publicSymbols
+}
 
-	// Private declarations and implementation-only imports never become exports.
-	a.symbols = NewEnclosedSymbolTable(exports)
-	a.symbols.outerBeforeImports = true
-	implemented := make(map[*ast.FunctionDecl]bool)
+// analyzeUnitImplementationSection matches implementations before recording
+// their bodies, preserving the public/private source scopes and stop boundary.
+func (a *Analyzer) analyzeUnitImplementationSection(
+	implementationSection *ast.BlockStatement,
+	normalizedUnits map[string]*SymbolTable,
+	imported map[string]string,
+	interfaceFunctions map[string][]*ast.FunctionDecl,
+	implemented map[*ast.FunctionDecl]bool,
+	recordBody func(*ast.FunctionDecl),
+) error {
 	if implementationSection != nil {
 		for _, stmt := range implementationSection.Statements {
 			if a.stopped {
@@ -174,14 +232,20 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				a.addError("implementation of '%s' doesn't match interface: %v", decl.Name.Value, a.validateFunctionSignatureMatch(candidates[0], decl))
 				continue
 			}
-			if !matched {
-				a.registerFunctionSignature(decl)
+			if !matched && a.analyzeUntilStop(func() { a.registerFunctionSignature(decl) }) {
+				break
 			}
-			bodies = append(bodies, decl)
-			bodyInsertions[decl] = a.newDiagnosticInsertion()
-			bodyLookups[decl] = a.captureSourceScope(a.symbols)
+			recordBody(decl)
 		}
 	}
+	return nil
+}
+
+func (a *Analyzer) analyzeUnitRoutineBodies(
+	bodies []*ast.FunctionDecl,
+	bodyInsertions map[*ast.FunctionDecl]*diagnosticInsertion,
+	bodyLookups map[*ast.FunctionDecl]sourceScopeSnapshot,
+) {
 	for _, decl := range bodies {
 		if decl.Body == nil {
 			continue
@@ -204,12 +268,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
 		})
 	}
-	// Interface implementations were matched above rather than through
-	// DefineOverload, so settle their forward state here; what remains
-	// forward was never implemented.
-	for decl := range implemented {
-		exports.resolveForwardAt(decl.Name.Value, decl.Name.Token.Pos)
-	}
+}
+
+func (a *Analyzer) analyzeUnitLifecycleSections(unit *ast.UnitDeclaration) {
 	for _, section := range []*ast.BlockStatement{unit.InitSection, unit.FinalSection} {
 		if section != nil {
 			for _, stmt := range section.Statements {
@@ -219,15 +280,6 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 		}
 	}
-	// DWScript checks forwards once the whole unit has been read, so these
-	// follow the unit's other diagnostics.
-	a.reportUnimplementedForwards(exports, a.symbols)
-	// The importing program must not report them again.
-	exports.resolveForwards()
-	if a.hasActualErrors() {
-		return &AnalysisError{Errors: a.errors}
-	}
-	return nil
 }
 
 // ResolveQualifiedSymbol resolves a qualified symbol reference like "UnitName.SymbolName".

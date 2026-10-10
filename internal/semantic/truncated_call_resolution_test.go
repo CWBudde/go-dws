@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // analyzeDespiteParserErrors analyzes source at pedantic hint level even when
@@ -66,5 +67,32 @@ func TestTruncatedCall_MethodCasingHintPrecedesStop(t *testing.T) {
 	want := []string{`Hint: "Translate" does not match case of declaration ("translate") [line: 4, column: 5]`}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("diagnostics = %q, want %q", got, want)
+	}
+}
+
+func TestContainsParserRecovery_PreservesEarlierSibling(t *testing.T) {
+	for _, tt := range []struct {
+		expression ast.Expression
+		name       string
+	}{
+		{&ast.InvalidExpression{}, "invalid"},
+		{&ast.CallExpression{Truncated: true}, "call"},
+		{&ast.NewExpression{Truncated: true}, "new"},
+		{&ast.MethodCallExpression{Truncated: true}, "method"},
+		{&ast.InheritedExpression{Truncated: true}, "inherited"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, completed := range []ast.Expression{&ast.CallExpression{}, &ast.NewExpression{}, &ast.MethodCallExpression{}, &ast.InheritedExpression{}} {
+				expr := &ast.BinaryExpression{Left: tt.expression, Right: completed}
+				if !containsParserRecovery(expr) {
+					t.Errorf("completed %T erased earlier %T", completed, tt.expression)
+				}
+			}
+		})
+	}
+	for _, completed := range []ast.Expression{&ast.CallExpression{}, &ast.NewExpression{}, &ast.MethodCallExpression{}, &ast.InheritedExpression{}} {
+		if containsParserRecovery(completed) {
+			t.Errorf("completed %T incorrectly marked as recovery", completed)
+		}
 	}
 }

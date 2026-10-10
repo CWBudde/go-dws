@@ -90,7 +90,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	a.retainScope(lambdaScope, "lambda")
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	// Add parameters to lambda scope
 	for i, param := range expr.Parameters {
@@ -258,7 +258,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	a.retainScope(lambdaScope, "lambda")
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	// Add parameters to lambda scope
 	for i, param := range expr.Parameters {
