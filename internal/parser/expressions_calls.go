@@ -221,6 +221,14 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 			continue
 		}
 
+		// Only a field initializer is separated by ';'. After a positional
+		// argument, ReadArguments' missing closer is an AddCompilerStop upstream
+		// (`TMyObject(m;`, FailureScripts/class_cast).
+		if !hasColon && p.cursor.Peek(1).Type == lexer.SEMICOLON {
+			p.addExpectedStop(end)
+			return items, false
+		}
+
 		// Check if we should continue to next item
 		shouldContinue, ok := p.advanceToNextItem(end)
 		if !ok {
