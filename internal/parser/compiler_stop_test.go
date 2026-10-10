@@ -66,3 +66,26 @@ func TestParser_RecoveredTypedConstStringifies(t *testing.T) {
 		t.Fatalf("program.String() = %q, want %q", got, want)
 	}
 }
+
+// TestParser_SemicolonAfterPositionalArgumentStopsWithBracket pins that ';' only
+// separates field initializers in a `Name(…)` list: after a positional argument,
+// upstream's ReadArguments stops with `")" expected` at the ';'
+// (FailureScripts/class_cast), and the call keeps its completed argument.
+func TestParser_SemicolonAfterPositionalArgumentStopsWithBracket(t *testing.T) {
+	for _, input := range []string{"m := TMyObject(m;", "PrintLn(m;", "Foo(a, b;"} {
+		t.Run(input, func(t *testing.T) {
+			p := testParser(input)
+			program := p.ParseProgram()
+			errs := p.Errors()
+			if len(errs) != 1 || errs[0].Message != `")" expected` || !errs[0].Stop {
+				t.Fatalf("errors = %v, want one \")\" expected stop", errs)
+			}
+			if want := len(input); errs[0].Pos.Column != want {
+				t.Fatalf("stop at column %d, want %d (the ';')", errs[0].Pos.Column, want)
+			}
+			if len(program.Statements) == 0 {
+				t.Fatalf("the truncated call statement was dropped")
+			}
+		})
+	}
+}

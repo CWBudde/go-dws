@@ -249,8 +249,8 @@ Value and grouped uses report `Expression expected` at the following token.
 Taking its address reports that child error before `unexpected "@"`; it does not
 create a callback. Constant recovery substitutes null and keeps the declared name
 available to later checks, including through unary/binary constant operators.
-Nested malformed-call casing hints are still to be measured against the truncated-call
-carrier (Phase 2.1). Reserved declaration-name validation remains in Phase 3. The remaining
+A nested malformed call (`PrintLn(debugbreak(;`) drops its casing hint; no fixture needs
+it, so it is parked in [known divergences](../decisions/known-divergences.md). Reserved declaration-name validation remains in Phase 3. The remaining
 reintroduced-property contexts are parked (Phase 2.4). Default type/alias
 validation is tracked separately in Phase 4.2.
 
@@ -263,8 +263,14 @@ and special functions do not become its members: `Default.Low(Integer)` and
 and statement diagnostics are suppressed. A pedantic casing hint checks the
 qualifier (`default` versus `Default`); qualified member spelling has no separate
 casing hint. Truncated calls now keep their callee (see
-[compile stops](../architecture/compile-stops.md)). Whether `Default.Low(;` matches upstream
-is still to be measured (Phase 2.1).
+[compile stops](../architecture/compile-stops.md)). `Default.Low(;` still reports the parser's
+`Expression expected` at the `;` instead of upstream's `Unknown name` stop at the member; no
+fixture needs it (see [known divergences](../decisions/known-divergences.md)).
+
+On an enumeration type name, `TElement.Name(…)` stops with
+`There is no accessible method with name "Name" for type TElement` at the member token, before
+the arguments are read, unless the call is `ByName(…)` or an empty `()` pair. This also applies
+when the argument list is cut short (`TElement.low(;`).
 
 Qualified output bypasses routines and callback variables named `Print` or
 `PrintLn`. Compilation records the namespace receiver so a caller's local
