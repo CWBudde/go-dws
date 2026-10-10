@@ -69,6 +69,9 @@ type Diagnostic struct {
 	// provisional marks a parser stop that semantic analysis decides and
 	// reports itself (parser.ParserError.Provisional).
 	provisional bool
+	// cursorLine and cursorColumn locate the scanner position a stop was raised
+	// at, when it is past the displayed position (semantic.SemanticError.Cursor).
+	cursorLine, cursorColumn int
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -354,47 +357,66 @@ func dropProvisional(diags []Diagnostic) []Diagnostic {
 	return kept
 }
 
-// dropDiagnosticsAfterStop applies the earliest compiler stop to diagnostics
-// from the other compilation phase. Parser stops cut off semantic diagnostics by
-// position. Semantic stops already cut off their own diagnostics in emission
-// order, so their child errors survive even when displayed after the stop's
-// scanner cursor; only later parser diagnostics need pruning here.
+// dropDiagnosticsAfterStop is the single compiler-stop cut. Upstream compiles in
+// one pass and a stop unwinds the compiler, so nothing past the scanner position
+// of the first stop is ever read. The earliest stop of either phase therefore
+// cuts every diagnostic of every phase positioned after it. That includes
+// semantic diagnostics the analyzer emitted before it reached the stop (a
+// helper's redundant-specifier hint checked before its inline method bodies)
+// and the parser's unfinished class body after an unknown name
+// (param_partial3). A stop cuts at its cutPosition, so the children an
+// after-children stop has already read survive (array_of_proc2).
 //
-// At a tie the semantic stop wins. The analyzer only reaches the token of a
-// parser stop through a carrier the parser left for it to decide, such as an
-// interrupted typed constant initializer, which upstream reads as a record
-// constant (`"(" expected`) where the parser saw a missing expression.
+// At a tie the semantic stop wins and the parser diagnostics at its position are
+// cut too. The analyzer only reaches the token of a parser stop through a
+// carrier the parser left for it to decide, such as an interrupted typed
+// constant initializer, which upstream reads as a record constant
+// (`"(" expected`) where the parser saw a missing expression.
 //
 // Positions are only comparable within one source, so diags must hold the
 // diagnostics of a single file. Diagnostics that are not positional but deferred
 // to the end of the compilation are dropped by SetCompileStopped instead, which
 // keeps the analyzer from emitting them at all.
 func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
-	stopLine, stopColumn, found := 0, 0, false
-	var stopPhase Phase
-	for _, diag := range diags {
-		earlier := diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)
-		tie := diag.Line == stopLine && diag.Column == stopColumn && diag.Phase == PhaseSemantic
-		if diag.Stop && (!found || earlier || tie) {
-			stopLine, stopColumn, found, stopPhase = diag.Line, diag.Column, true, diag.Phase
+	var stop *Diagnostic
+	for i := range diags {
+		diag := &diags[i]
+		if !diag.Stop {
+			continue
+		}
+		if stop == nil || positionBefore(diag.cutPosition(), stop.cutPosition()) ||
+			(diag.cutPosition() == stop.cutPosition() && diag.Phase == PhaseSemantic) {
+			stop = diag
 		}
 	}
-	if !found {
+	if stop == nil {
 		return diags
 	}
+	cut, stopPhase := stop.cutPosition(), stop.Phase
 	kept := diags[:0]
 	for _, diag := range diags {
-		after := diag.Line > stopLine || (diag.Line == stopLine && diag.Column > stopColumn)
-		// Semantic diagnostics were already truncated in emission order. A child
-		// may display after its parent's scanner cursor (e.g. array_of_proc2).
-		atStop := diag.Line == stopLine && diag.Column == stopColumn
-		if (after && stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
-			((after || atStop) && stopPhase == PhaseSemantic && diag.Phase == PhaseParsing) {
+		pos := diag.position()
+		if positionBefore(cut, pos) ||
+			(pos == cut && stopPhase == PhaseSemantic && diag.Phase == PhaseParsing) {
 			continue
 		}
 		kept = append(kept, diag)
 	}
 	return kept
+}
+
+// position returns where the diagnostic is displayed.
+func (d Diagnostic) position() lexer.Position {
+	return lexer.Position{Line: d.Line, Column: d.Column}
+}
+
+// cutPosition returns where a stop cuts the compilation: the scanner position
+// it was raised at, which may lie past its displayed position.
+func (d Diagnostic) cutPosition() lexer.Position {
+	if d.cursorLine != 0 {
+		return lexer.Position{Line: d.cursorLine, Column: d.cursorColumn}
+	}
+	return d.position()
 }
 
 // safeMonomorphize runs generic specialization and records a failure as a
@@ -847,6 +869,8 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			diag := Diagnostic{
 				afterChildren: err.AfterChildren,
 				Stop:          err.Stop,
+				cursorLine:    err.Cursor.Line,
+				cursorColumn:  err.Cursor.Column,
 				Message:       message,
 				Rendered:      rendered,
 				Code:          string(err.Type),
@@ -861,9 +885,6 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			}
 			seen[diag.Render()] = struct{}{}
 			diags = append(diags, diag)
-			if diag.Stop {
-				break
-			}
 			continue
 		}
 
@@ -902,7 +923,6 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 	colonExpectedByLine := make(map[int]bool)
 	dotExpectedByLine := make(map[int]bool)
 	seenNameExpectedColumnByLine := make(map[int]int)
-	hasUnknownName := false
 
 	for _, diag := range diags {
 		if strings.Contains(diag.Message, "Name expected") {
@@ -918,9 +938,6 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 		if strings.Contains(diag.Message, `Dot "." expected`) {
 			dotExpectedByLine[diag.Line] = true
 		}
-		if strings.Contains(diag.Message, "Unknown name \"") {
-			hasUnknownName = true
-		}
 
 		if typeName := unknownTypeName(diag.Message); typeName != "" {
 			for _, existing := range filtered {
@@ -934,11 +951,6 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 			}
 		}
 
-		if diag.Phase == PhaseParsing && hasUnknownName && isClassBodyUnfinished(diag) {
-			// An unknown name is a compiler stop upstream, so the class body
-			// that ran out of input after it is never reported (param_partial3).
-			continue
-		}
 		if diag.Phase == PhaseParsing && diag.Message == "Expression expected" && len(filtered) > 0 {
 			prev := filtered[len(filtered)-1]
 			if strings.Contains(prev.Message, "Record fields must be declared before record methods") && diag.Line == prev.Line+1 {
@@ -1017,15 +1029,6 @@ func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarl
 	}
 
 	return false, replaceIdx
-}
-
-// isClassBodyUnfinished reports the parser's diagnostic for a class body that was
-// never closed: "Name expected" once the input ran out, the older sentence otherwise.
-func isClassBodyUnfinished(diag Diagnostic) bool {
-	if diag.Message == "expected 'end' to close class declaration" {
-		return true
-	}
-	return diag.Message == "Name expected" && diag.Code == parser.ErrMissingEnd
 }
 
 func unknownTypeName(message string) string {
