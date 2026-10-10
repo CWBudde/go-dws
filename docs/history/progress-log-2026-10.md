@@ -1,5 +1,29 @@
 # Progress log — October 2026
 
+## 2026-10-10 — Former 2.1 tails measured against the carrier (PLAN 2.1)
+
+The three tails deferred from the old 2.1 were measured against the truncated-call carrier.
+None of them is needed by a fixture, so all three are parked in
+[known divergences](../decisions/known-divergences.md):
+- `Default.Low(;`;
+- the casing hint inside `PrintLn(debugbreak(;`;
+- nonempty and EOF recovery after reintroduced-property brackets.
+
+`FailureScripts/debugbreak` and `property_reintroduce1`/`2` already pass.
+
+The same `--classify` run isolated three fixtures from the same family. All three now pass:
+- `enums8`: on an enumeration type name, `TElement.Name(` stops with
+  `There is no accessible method with name …` at the member before the arguments are read,
+  unless it is `ByName(…)` or `()` (upstream `ReadEnumerationSymbolName`). This applies to
+  truncated and completed calls.
+- `params3`: a truncated method call on a class receiver keeps the member's pedantic casing
+  hint. Upstream resolves the member before `ReadArguments` stops.
+- `class_cast`: in a `Name(…)` list, `;` separates only field initializers. After a positional
+  argument, `TMyObject(m;` stops with `")" expected` at the `;`, as upstream's `ReadArguments`
+  does.
+
+**Fixtures:** FailureScripts 324 → 327.
+
 ## 2026-10-10 — Compile-stop model (PLAN 2.1)
 
 Compile stops now follow upstream's single-pass rule: nothing after the first compiler stop is
