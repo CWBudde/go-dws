@@ -400,9 +400,9 @@ Replace the separate stop mechanisms with one model: the parser marks a truncate
 analyzer genuinely stops, and the frontend makes one position cut. Design and current state:
 [`compile-stops.md`](docs/architecture/compile-stops.md).
 
-Measured yield so far: +6 fixtures.
-- `missing_parenthesis1`, `block_unfinished2`, `except_error4` and `except_error5` in
-  FailureScripts.
+Measured yield so far: +9 fixtures.
+- `missing_parenthesis1`, `block_unfinished2`, `except_error4`, `except_error5`, `enums8`,
+  `params3` and `class_cast` in FailureScripts.
 - `HelpersFail/strict`.
 - `BuildScripts/init_order4`, which is order-dependent, so it is not ratcheted.
 
@@ -420,17 +420,20 @@ Measured yield so far: +6 fixtures.
 - [x] S Drop completion hints of blocks cut by a missing END (`block_unfinished2`).
 - [x] S Re-run `--classify` (2026-10-10: 107 failures at distance 1) and move the
   first-diagnostic gaps the stop cut isolated into Phases 1, 2.3, 3 and 4.
-- [ ] S Carrier: keep the pre-stop analyzer diagnostic of a truncated node (`enums8` callee
-  lookup, `params3` case hint, `class_cast` `")" expected`, `try_except1` handler check,
-  `class_error4` interface check).
+- [x] S Carrier: resolve a truncated call's member before its argument stop (`enums8`), keep
+  its casing hint (`params3`); `;` after a positional argument stops with `")" expected`
+  (`class_cast`).
+- [ ] S Carrier: the truncated `try` drops the handler check before `END expected`
+  (`try_except1`; the check itself is also go-native and rejects `TAlias = Exception`), and the
+  truncated class header drops the interface check before `")" expected` (`class_error4`).
 - [ ] S Finish the single cut in the frontend:
   - A semantic diagnostic that was emitted early but is positioned after a later semantic stop
     is not cut yet, for example a helper's redundant-specifier hint.
   - Now that `Unknown name` stops, remove the class-body filter in `semanticDiagnostics` and
     its first-stop `break`, unless the measurement shows they are still needed.
-- [ ] S ⚠️ Measure the former 2.1 tails against the carrier: `Default.Low(;`, intrinsic casing
-  hints inside `PrintLn(debugbreak(;`, and nonempty/EOF recovery after reintroduced-property
-  brackets. Park any that no fixture needs.
+- [x] S Measure the former 2.1 tails (`Default.Low(;`, casing hints in `PrintLn(debugbreak(;`,
+  reintroduced-property bracket recovery): no fixture needs them, parked in
+  [known divergences](docs/decisions/known-divergences.md).
 
 ### 2.2 Property-access consolidation — M (refactor, no new behaviour)
 
