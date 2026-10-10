@@ -122,7 +122,23 @@ func (a *Analyzer) analyzeArgumentForParameter(arg ast.Expression, paramType typ
 	return a.analyzeExpressionWithExpectedType(arg, paramType)
 }
 
+// analyzeTruncatedCall handles any call form the parser marked as truncated: a
+// compiler stop cut its argument list short. Upstream's ReadArguments compiles
+// each argument as it reads it, so the completed arguments the parser kept are
+// analyzed, but the call is never resolved: no argument-count, argument-type or
+// end-of-program checks run. The parser retains the authoritative stop.
+func (a *Analyzer) analyzeTruncatedCall(args []ast.Expression) types.Type {
+	a.skipEndOfProgramChecks = true
+	for _, arg := range args {
+		a.analyzeExpression(arg)
+	}
+	return nil
+}
+
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
+	if expr.Truncated {
+		return a.analyzeTruncatedCall(expr.Arguments)
+	}
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if name, ok := memberAccess.Object.(*ast.Identifier); ok {
@@ -134,7 +150,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					a.symbols.symbols.Set(memberAccess.Member.Value, symbol)
 				} else {
 					a.symbols = oldSymbols
-					a.addStructuredError(NewUnknownNameError(memberAccess.Member.Token.Pos, name.Value+"."+memberAccess.Member.Value))
+					a.addCompilerStop(NewUnknownNameError(memberAccess.Member.Token.Pos, name.Value+"."+memberAccess.Member.Value))
 					return nil
 				}
 				defer func() { a.symbols = oldSymbols }()
@@ -244,9 +260,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return funcPtrType
 		}
 		diagnostic := NewGenericError(expr.Token.Pos, "Not a method")
-		diagnostic.Stop = true
-		a.compileStopped = true
-		a.addStructuredError(diagnostic)
+		a.addCompilerStop(diagnostic)
 		return nil
 	}
 
@@ -591,7 +605,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcIdent.Value))
+		a.addCompilerStop(NewUnknownNameError(funcIdent.Token.Pos, funcIdent.Value))
 		return nil
 	}
 
@@ -1206,7 +1220,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 	methodName := member.Value
 	overloads := recordType.GetClassMethodOverloads(ident.Normalize(methodName))
 	if len(overloads) == 0 {
-		a.addStructuredError(NewAccessibleMemberError(member.Token.Pos, methodName, recordType.Name))
+		a.addCompilerStop(NewAccessibleMemberError(member.Token.Pos, methodName, recordType.Name))
 		return nil
 	}
 	return a.analyzeRecordCall(overloads, expr.Arguments, methodName, member.Token.Pos)

@@ -62,7 +62,11 @@ func builtinCompatibilityResult(name, pattern string) []string {
 		args = append(args, &ast.Identifier{Value: name})
 	}
 	call := &ast.CallExpression{Function: &ast.Identifier{Value: name}, Arguments: args}
-	result, ok := a.analyzeBuiltinFunction(name, args, call)
+	// An unresolved argument is a compiler stop: the call is abandoned there,
+	// so it reports no result and nothing after the stop.
+	var result types.Type
+	var ok bool
+	a.analyzeUntilStop(func() { result, ok = a.analyzeBuiltinFunction(name, args, call) })
 	resultName := "<nil>"
 	if result != nil {
 		resultName = result.String()

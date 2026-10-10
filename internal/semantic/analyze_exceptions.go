@@ -65,7 +65,7 @@ func (a *Analyzer) analyzeTryStatement(stmt *ast.TryStatement) {
 	}
 
 	// Validate that at least one of except or finally is present
-	if stmt.ExceptClause == nil && stmt.FinallyClause == nil {
+	if stmt.ExceptClause == nil && stmt.FinallyClause == nil && !isTruncatedBlock(stmt.TryBlock) {
 		a.addError("try statement must have either except or finally clause")
 	}
 }
@@ -108,10 +108,16 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 			return
 		}
 
-		// Validate that the type is Exception-compatible
-		if !a.isExceptionType(excType) {
-			a.addError("exception handler type must be Exception or derived class, got %s", excType.String())
-			return
+		// ReadExcept checks BaseType.IsClassSymbol, so aliases and ordinary
+		// classes are valid. A nonclass is an ordinary error: the reached
+		// handler statement is still compiled with its declared variable type.
+		if _, ok := types.GetUnderlyingType(excType).(*types.ClassType); !ok {
+			a.addStructuredError(&SemanticError{
+				Type:     ErrorTypeMismatch,
+				Message:  "Class reference expected",
+				Pos:      handler.ExceptionType.Pos(),
+				Severity: SeverityError,
+			})
 		}
 	} else {
 		// Bare except handler - catches all exceptions

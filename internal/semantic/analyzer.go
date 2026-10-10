@@ -110,12 +110,14 @@ type Analyzer struct {
 	// assignmentCallRecovery scopes bad-arity result recovery to the exact RHS call.
 	assignmentCallRecovery *ast.CallExpression
 
-	// compileStopped records a compiler stop: either an error DWScript raises as
-	// one (an unknown name in an expression) or a parser stop the front end
-	// reports. Upstream abandons the compile there, unwinding past
+	// stopped records that the analyzer raised a compiler stop (see
+	// compile_stop.go). skipEndOfProgramChecks records a stop the analyzer does
+	// not unwind for: a parser stop the front end reports, a truncated call, or
+	// an unknown name. Upstream abandons the compile at a stop, unwinding past
 	// TSymbolTable.Initialize, so the end-of-program checks such as
-	// unimplemented forwards never run.
-	compileStopped          bool
+	// unimplemented forwards never run after either.
+	stopped                 bool
+	skipEndOfProgramChecks  bool
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
 	retainedScopes          []*SymbolTable
@@ -408,11 +410,23 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 	a.registerBuiltinType("IInterface", iinterface)
 }
 
+// deferredProgramFunction retains a routine's source scope and diagnostic
+// insertion point while its body waits for top-level signatures.
+type deferredProgramFunction struct {
+	returnType types.Type
+	decl       *ast.FunctionDecl
+	insertion  *diagnosticInsertion
+	lookup     sourceScopeSnapshot
+	paramTypes []types.Type
+	analyze    bool
+}
+
 // Analyze performs semantic analysis on a program.
-func (a *Analyzer) Analyze(program *ast.Program) error {
+func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	if program == nil {
 		return fmt.Errorf("cannot analyze nil program")
 	}
+	defer a.recoverCompileStop(&err)
 
 	a.diagnosticInsertions = nil
 	defer func() { a.diagnosticInsertions = nil }()
@@ -438,15 +452,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	//
 	// Inline methods use the same insertion points, while their bodies still
 	// wait for all top-level class members to be registered.
-	type deferredFunc struct {
-		lookup     sourceScopeSnapshot
-		returnType types.Type
-		decl       *ast.FunctionDecl
-		paramTypes []types.Type
-		analyze    bool
-		insertion  *diagnosticInsertion
-	}
-	deferred := make(map[*ast.FunctionDecl]deferredFunc)
+	deferred := make(map[*ast.FunctionDecl]deferredProgramFunction)
 
 	// Pass 1: register signatures, analyze non-function declarations and top-level statements.
 	// Inline class method bodies are deferred until the last top-level class
@@ -456,11 +462,21 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	a.deferClassMethodBodies = true
 	lastClassDecl := lastTopLevelClassDeclIndex(program)
 	var reach reachabilityState
+	// A compiler stop abandons the rest of the program; the bodies deferred
+	// before it still run below, as upstream compiled them before the stop.
 	for i, stmt := range program.Statements {
+		if a.stopped {
+			break
+		}
 		reach.before(a, stmt, true)
 		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
-			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
-			deferred[fd] = deferredFunc{
+			var paramTypes []types.Type
+			var returnType types.Type
+			var regOK bool
+			if a.analyzeUntilStop(func() { paramTypes, returnType, regOK = a.registerFunctionSignature(fd) }) {
+				break
+			}
+			deferred[fd] = deferredProgramFunction{
 				decl:       fd,
 				lookup:     a.captureSourceScope(a.symbols),
 				paramTypes: paramTypes,
@@ -471,9 +487,12 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			continue
 		}
 		a.mainStatement = stmt
-		a.analyzeStatement(stmt)
-		reach.after(stmt)
+		stopped := a.analyzeTopLevelStatement(stmt)
 		a.mainStatement = nil
+		if stopped {
+			break
+		}
+		reach.after(stmt)
 		if i == lastClassDecl {
 			a.drainDeferredMethodBodies()
 		}
@@ -481,21 +500,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	a.drainDeferredMethodBodies()
 
 	// Pass 2 restores routine diagnostics at their declaration insertion points.
-	for _, stmt := range program.Statements {
-		fd, ok := stmt.(*ast.FunctionDecl)
-		if !ok {
-			continue
-		}
-		df, tracked := deferred[fd]
-		if !tracked || !df.analyze {
-			continue
-		}
-		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
-			restore := df.lookup.activate()
-			defer restore()
-			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
-		})
-	}
+	a.analyzeDeferredProgramFunctions(program, deferred)
 
 	a.suppressSelfAssignmentAfterErrors()
 	a.reportUnimplementedForwards(a.symbols)
@@ -519,6 +524,24 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	return nil
+}
+
+func (a *Analyzer) analyzeDeferredProgramFunctions(program *ast.Program, deferred map[*ast.FunctionDecl]deferredProgramFunction) {
+	for _, stmt := range program.Statements {
+		fd, ok := stmt.(*ast.FunctionDecl)
+		if !ok {
+			continue
+		}
+		df, tracked := deferred[fd]
+		if !tracked || !df.analyze {
+			continue
+		}
+		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
+			restore := df.lookup.activate()
+			defer restore()
+			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		})
+	}
 }
 
 func (a *Analyzer) isPredeclaredClassType(className string) bool {
@@ -575,7 +598,7 @@ func (a *Analyzer) errorsPrecedeCurrentStatement() bool {
 // Forwards of several scopes (a unit's interface and implementation) are
 // reported together in DWScript's order.
 func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	var forwards []*Symbol
@@ -593,7 +616,7 @@ func (a *Analyzer) validateForwardDeclarations() {
 	// An abandoned compile never reaches the end-of-program checks. This one
 	// reports without a position, so dropDiagnosticsAfterStop cannot prune it
 	// afterwards — it has to be skipped here.
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	for _, t := range a.typeRegistry.AllTypes() {
@@ -611,7 +634,7 @@ func (a *Analyzer) validateForwardDeclarations() {
 }
 
 func (a *Analyzer) validateForwardMethods() {
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	for _, t := range a.typeRegistry.AllTypes() {
@@ -701,7 +724,7 @@ func (a *Analyzer) SetParseHadErrors(had bool) {
 // compiler stop, so the end-of-program checks must not run. The front end sets
 // it for a parser stop, which upstream raises before the analyzer is reached.
 func (a *Analyzer) SetCompileStopped(stopped bool) {
-	a.compileStopped = stopped
+	a.skipEndOfProgramChecks = stopped
 }
 
 // SetHintsLevel configures which hints should be emitted.

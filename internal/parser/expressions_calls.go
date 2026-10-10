@@ -39,12 +39,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 		return builder.Finish(exp).(ast.Expression)
 	}
 
-	exp.Arguments = p.parseExpressionList()
-	if p.stopped() {
-		// The argument list was cut short by a compiler stop: upstream never
-		// finished reading this call, so its argument checks never ran.
-		return nil
-	}
+	exp.Arguments, exp.Truncated = p.parseCallArguments()
 	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
 
@@ -62,20 +57,19 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 
 	// Non-identifier first element -> must be function call
 	if nextToken.Type != lexer.IDENT {
-		if call := p.parseCallWithExpressionList(typeName); call != nil {
-			return call
-		}
-		return nil // a typed nil would not compare equal to nil
+		return p.parseCallWithExpressionList(typeName)
 	}
 
 	// We have: TypeName(IDENT ...
 	// Parse arguments/fields and determine type based on whether ALL have colons
 	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
 	if p.stopped() {
-		// The list was cut short by a compiler stop: upstream never finished
-		// reading this call, so neither a call nor a record literal is built
-		// from what it did read (parseCallWithExpressionList does the same).
-		return nil
+		// The list was cut short by a compiler stop. A partial record literal
+		// is not retained; a call keeps its completed positional arguments.
+		if allHaveColons {
+			return nil
+		}
+		return p.buildTruncatedCallFromFields(typeName, items)
 	}
 
 	if allHaveColons {
@@ -123,13 +117,7 @@ func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.Call
 		Function: typeName,
 	}
 
-	// Parse argument list using cursor version
-	exp.Arguments = p.parseExpressionList()
-	if p.stopped() {
-		// The argument list was cut short by a compiler stop: upstream never
-		// finished reading this call, so its argument checks never ran.
-		return nil
-	}
+	exp.Arguments, exp.Truncated = p.parseCallArguments()
 
 	// Set end position to RPAREN
 	expr, _ := builder.Finish(exp).(*ast.CallExpression)
@@ -165,6 +153,23 @@ func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items [
 	}
 }
 
+// buildTruncatedCallFromFields creates a call cut short by a compiler stop from
+// the completed positional items (see parseCallArguments).
+func (p *Parser) buildTruncatedCallFromFields(typeName *ast.Identifier, items []*ast.FieldInitializer) *ast.CallExpression {
+	args := make([]ast.Expression, 0, len(items))
+	for _, item := range items {
+		if item.Name == nil {
+			args = append(args, item.Value)
+		}
+	}
+	return &ast.CallExpression{
+		BaseNode:  ast.BaseNode{Token: p.cursor.Current()},
+		Function:  typeName,
+		Arguments: args,
+		Truncated: true,
+	}
+}
+
 // parseArgumentsOrFields parses a list that could be either function arguments or record fields.
 // Returns the parsed items and whether ALL of them were colon-based fields.
 // PRE: cursor is on LPAREN
@@ -186,11 +191,13 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 
 	for {
 		// Parse either a field initializer (name: value) or plain expression
+		mark := len(p.errors)
 		item, hasColon := p.parseSingleArgumentOrField()
 		if p.confirmDeferredCallStops(errorStart) {
 			return items, false
 		}
-		if item == nil {
+		if item == nil || !p.completedArgument(item.Value, mark) {
+			// Missing, or cut short by a compiler stop: not a completed argument.
 			return items, false
 		}
 
@@ -212,6 +219,14 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 			}
 			p.cursor = p.cursor.Advance()
 			continue
+		}
+
+		// Only a field initializer is separated by ';'. After a positional
+		// argument, ReadArguments' missing closer is an AddCompilerStop upstream
+		// (`TMyObject(m;`, FailureScripts/class_cast).
+		if !hasColon && p.cursor.Peek(1).Type == lexer.SEMICOLON {
+			p.addExpectedStop(end)
+			return items, false
 		}
 
 		// Check if we should continue to next item

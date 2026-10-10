@@ -58,6 +58,9 @@ func (a *Analyzer) classTypeFromNewOperand(name *ast.Identifier) *types.ClassTyp
 // analyzeNewExpression analyzes object creation (new TClass(args) or TClass.Create(args))
 // with constructor overload resolution and visibility checking.
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
+	if expr.Truncated {
+		return a.analyzeTruncatedCall(expr.Arguments)
+	}
 	var classType *types.ClassType
 	var className string
 
@@ -337,7 +340,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 				}
 				return sym.Type
 			}
-			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			a.addCompilerStop(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
 			return nil
 		}
 		switch ident.Normalize(identExpr.Value) {
@@ -348,7 +351,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {
 				return sym.Type
 			}
-			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			a.addCompilerStop(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
 			return nil
 		case "json":
 			// Bare JSON namespace access (JSON.NewObject / JSON.NewArray invoked
@@ -455,7 +458,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			return objectType
 		}
 
-		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -547,7 +550,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			pos := expr.Member.Token.Pos
-			a.addStructuredError(NewAccessibleMemberError(pos, expr.Member.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(pos, expr.Member.Value, objectType.String()))
 			return nil
 		}
 
@@ -560,12 +563,12 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 				a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
 				return types.VOID
 			}
-			a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value,
+			a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value,
 				a.setTypeDiagnosticName(objectType)))
 			return nil
 		}
 
-		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -815,7 +818,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 		return constType
 	}
 
-	a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+	a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 	return nil
 }
 

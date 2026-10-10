@@ -84,10 +84,11 @@ func TestCallArgumentDiagnostics(t *testing.T) {
 		},
 		{
 			// dyn_array1 / dyn_array_setlength2: the argument list did not
-			// parse, so its length says nothing about the call.
+			// parse, so its length says nothing about the call. The call is cut
+			// at a statement boundary, so the analyzer reports the stop.
 			name:  "array helper whose argument list failed to parse",
 			input: "var a : array of Integer;\na.Length(;",
-			want:  nil,
+			want:  []string{"Expression expected at 2:10"},
 		},
 		{
 			// open_array2: a dynamic array is not an open array.

@@ -453,6 +453,14 @@ func (p *Parser) parseBlockClosedBy(closers closerSet) *ast.BlockStatement {
 		return stmt
 	}
 	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
+		// A missing END is a compiler stop upstream (CPE_EndOfBlockExpected,
+		// dwsCompiler.pas:4154-4155), raised before HintUnusedSymbols runs on
+		// leaving the block (4157, 4540). The block is never completed, so it
+		// makes no unused-symbol hints, while routines completed earlier keep theirs.
+		// The error is not recorded as a stop: upstream raises it only after the
+		// block's statements were compiled, but it is displayed at the BEGIN, so a
+		// position cut would wrongly drop the diagnostics inside the block.
+		block.Truncated = true
 		p.addParserErrorAt(beginToken.Pos, beginToken.Length(), "expected 'end' to close block", ErrMissingEnd)
 		// Synchronize to recover
 		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})

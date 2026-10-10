@@ -56,7 +56,7 @@ Phase 6 is gated.
 - Of the 268 failing `*Fail` fixtures:
   - 107 still print a go-native sentence (1.8);
   - 96 are at distance 1;
-  - only about 3 are blocked purely by compile stops (2.1).
+  - only a handful were blocked purely by compile stops (2.1, now +6).
 
 ---
 
@@ -268,6 +268,13 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
 - [ ] Synthetic parameterless constructor ambiguity.
   - [ ] Measure competition with inherited constructors whose parameters all have defaults.
   - [ ] Resolve ambiguity while preserving upstream constructor candidate policy.
+- [ ] Distance-1 member sentences (2026-10-10).
+  - [ ] Member vs. method sentence (`class_var_scope1`, `enums_alias`), `Unknown name
+    "TMyEnum.meBug"` without a stop (`enums`), `No parameters expected`
+    (`string_builtin_methods1`), `Class method or constructor expected` for an instance field
+    read by a class property (`class_property3`).
+  - [ ] Inherited lookup through the implicit `TObject` parent: `Method "X" not found in
+    ancestor class` (`inherited4`, `inherited6`).
 
 ### 1.7 Default arguments and writable storage — M per remaining batch
 
@@ -306,12 +313,18 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
 
 - [ ] ⏸️ Remaining parser shapes — after the relevant Phase 2 prerequisites.
   - [ ] Audit remaining punctuation and type sentences; coordinate overlapping Phase 2 work.
+  - [ ] Distance 1: `Unexpected "else"` (`else_unexpected2`), `Unexpected END`
+    (`end_implementation1`), `End of block expected` at EOF (`for_empty`), `String expected`
+    (`external2`), lexer number sentences (`binary_literal2`, `for_var_error4`).
 - [ ] Unknown statement types and failed inference.
   - [ ] Match `Type expected` for unknown types.
   - [x] Reject valueless variable initializers with the ordinary no-return diagnostic;
     preserve inferred scanner lookahead, typed declaration-name anchors and declaration
     recovery (2.1 prerequisite; [#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [ ] Match `Type could not be inferenced` for failed inference.
+- [ ] FOR loop-variable stops from upstream `ReadForTo`: `For loop control variable must be
+  simple local variable`, `Integer expected` and `Variable expected` at the `:=`; the stop
+  also cuts the `Empty FOR loop` hint (`for_var_usage3`, `for_var_usage4`, `for_loopvar1`; 1 each).
 - [ ] FOR STEP diagnostics.
   - [ ] Establish constant-folding prerequisites for `for_step` and its optimized sibling.
   - [ ] Match type/positivity sentences and anchors after folding is available.
@@ -324,6 +337,10 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
 - [ ] Other semantic, frontend, lexer, and shared error-builder sites.
   - [ ] Close incompatible-type pairs in `coalesce`, `in_typecheck1`, and `property_default1`;
     the named former task 1.2 fixtures are closed.
+  - [ ] `case_typecheck`: drop the spurious Integer-vs-Float label error that upstream accepts.
+  - [ ] Anchor-only distance-1 gaps, message already right: `property_error7`,
+    `record_recursive2`, `resourcestring1`/`3`, `loop_infinite`,
+    `InnerClassesFail/sub_outside_scope`.
   - [ ] Inventory remaining invented sentences and split each measured shape into a task.
 - [ ] Go-native sentence sweep, largest shape first. 107 failing `*Fail` fixtures still print a
   go-native sentence; in 66 of them it is the only difference.
@@ -333,6 +350,10 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
     - `unary - requires numeric operand` (6);
     - `circular inheritance detected` (4).
   - Regenerate the list with `just fixture-report --in-scope --classify --shape-fixtures --shape-top 0`.
+  - Distance 1 (2026-10-10): `method2` (`Unknown name "Result"` at the LHS), `exit_result2`,
+    `inherited1`, `new_class2`/`5`, `new_array` (`unknown type`), `not_untyped`,
+    `method_implem2`, `class_loop`, `class_operator1`/`2`, `read_self`, `class_const1` and
+    `helper_error2` (each an extra go-native line).
 
 ---
 
@@ -368,60 +389,28 @@ angles (architecture, fixture leverage, history, docs) found three structural ca
 3. **No definition of done.** The "or a test through the real path" rule let contexts with no
    fixture behind them become closable tasks. See the definition of done under **Rules**.
 
-**Ordering.** 2.1 is the only part with direct fixture yield and the best leverage on the
-remaining distance-1 `*Fail` fixtures, so do it first. Do 2.2 before any further property-access
-work. 2.3 is independent: its items are S-sized one-offs that can run in parallel. 2.4 is not
-work, it is the parking list.
+**Ordering.** The fixture-backed work in 2.1 is complete. Do 2.2 before any further
+property-access work. 2.3 is independent: its items are S-sized one-offs that can run in
+parallel. 2.4 is not work, it is the parking list.
 
-### 2.1 Compile-stop model — M
+### 2.1 Compile-stop model — completed
 
-Replace the five mechanisms with one model: the parser marks a truncated call, the analyzer
-genuinely stops, and the frontend makes one position cut.
+Completed in [#474](https://github.com/CWBudde/go-dws/pull/474). The parser retains
+reached prefixes, the analyzer raises real stops, and the frontend cuts later diagnostics
+per source. The last carrier fixes keep the handler check in `try_except1` and the interface
+check in `class_error4`; class aliases are accepted in typed handlers.
 
-Measured yield:
-- About 3 fixtures pass outright: `missing_parenthesis1`, `HelpersFail/strict` and
-  `block_unfinished2`. `static_methods` would also match once later diagnostics are cut, but it
-  is a [known divergence](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written)
-  and is not a target.
-- About 24 more drop to distance 1, where the remaining line is a missing or wrong first stop
-  diagnostic. Examples: `case_error6`, `for_var_usage3`/`4`, `func_ptr2`, `invalid_cast3`,
-  `member_of_void1`, `method2`, `property_write5`, `const_3`.
+Measured yield: +11 fixtures.
+- `missing_parenthesis1`, `block_unfinished2`, `except_error4`, `except_error5`, `enums8`,
+  `params3`, `class_cast`, `try_except1` and `class_error4` in FailureScripts (320 → 329).
+- `HelpersFail/strict`.
+- `BuildScripts/init_order4`, which is order-dependent, so it is not ratcheted.
 
-Re-run `--classify` after each step and move the newly isolated first-diagnostic gaps into
-Phase 1/4.
-
-- [ ] S Write `docs/architecture/compile-stops.md`. It should cover:
-  - The current mechanisms (sites listed above).
-  - Upstream's model: `AddCompilerStop` → `ECompileError`, with emission in pass order at
-    `FTok.HotPos`.
-  - The target design.
-  - The invariants formerly listed under 2.4. The §1.3 enum, cast, record-metatype and
-    anonymous-signature work must preserve source declaration order, routine-body insertion
-    points, speculative parser-error restoration, semantic recovery types, and true stops
-    ahead of later assignment or end-of-program diagnostics.
-- [ ] M Parser: one truncated-call carrier for every call form (`CallExpression`,
-  `NewExpression`, `MethodCallExpression`, statement-boundary calls), replacing the current
-  `nil`/`Incomplete`/`DeferredCall` split.
-  - Target fixture: `missing_parenthesis1` (`Invalid Operands` from inside a stopped call).
-  - Keep `array_index_bracket_missing1` and `constructor_invalid_param` passing.
-  - Also covers the deferred former-2.1 tails: `Default.Low(;`, intrinsic casing hints inside
-    `PrintLn(debugbreak(;`, and nonempty/EOF recovery after reintroduced-property brackets.
-- [ ] M Analyzer: real stops. Emit a stop as a sentinel recovered in `safeAnalyze`, replacing
-  the single `compileStopped` flag.
-  - Analyzer `"(" expected` stops suppress later diagnostics the way parser stops do.
-  - The end-of-program forward check follows the same rule.
-  - Target fixture: `HelpersFail/strict`.
-- [ ] S Frontend: reduce `compileParsedResult` to one stop-position cut.
-  - Delete `refineTypePunctuationDiagnostics` (message-string matching) and
-    `refineDeferredPropertyCallDiagnostics` once the carrier exists.
-  - Apply the `reachedLexerDiagnostics` cutoff on the unit-compile path
-    (`internal/frontend/units.go`) as well.
-  - The remaining `sortDiagnostics` heuristics should only order parser vs. analyzer output.
-- [ ] S Drop end-of-compilation hints positioned before a stop (`block_unfinished2`).
-  [#472](https://github.com/CWBudde/go-dws/pull/472) ships the private field/method part.
-- [ ] S Inside `begin…end`, upstream reports a follow-up diagnostic for the value left
-  unconsumed after a read-only property assignment. Indexed read-only property writes get none
-  either. Measure against `PropertyExpressionsFail/expr_write_readonly_property` first.
+Design, current mechanisms and broader unmeasured targets:
+[`compile-stops.md`](docs/architecture/compile-stops.md). Shipped behavior and verification:
+[October progress log](docs/history/progress-log-2026-10.md#2026-10-10--retained-try-and-class-header-checks-plan-21).
+`static_methods` remains a [known divergence](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written);
+former tails without fixture demand remain parked there.
 
 ### 2.2 Property-access consolidation — M (refactor, no new behaviour)
 
@@ -470,6 +459,8 @@ nearest-first.
   (`attribute_incorrect2`, 3).
 - [ ] `interface helper for T` (`HelpersFail/mixed_helper`, 3; together with 4.3).
 - [ ] `OF OBJECT expected` and legacy hints (`legacy_proc_of_object`, 9).
+- [ ] An empty `()` group is `Expression expected`, not an empty array literal
+  (`member_of_void1`, 1). Recheck after #472's `null_read_expression`, which has the same root.
 
 **Landing in [#472](https://github.com/CWBudde/go-dws/pull/472)** (remove after merge):
 - `export` directive;
@@ -506,6 +497,9 @@ after 2.2:
   - private-access/static/write-only call-ordering alignment.
 - Qualified builtin calls through `Internal`/`System` (`Internal.Abs(-3)`) and method-call
   syntax on those qualifiers.
+- The follow-up diagnostic upstream reports inside `begin…end` for a value left unconsumed after
+  a read-only property assignment. No fixture measures it:
+  `expr_write_readonly_property` fails for an unrelated reason, `write (expr)` parsing.
 
 ---
 
@@ -523,14 +517,21 @@ message shape; counts are lines (fixtures).
   `TStructuredTypeSymbol.CheckMethodsImplemented` (dwsSymbols.pas) tests each method symbol's own
   executable, so an unimplemented overload is still reported, sorted by declaration position.
   Measure the per-overload wording and anchor first.
-- [ ] S Remaining fixtures of the shape.
+- [ ] S Remaining fixtures of the shape, including `new_class3` (the unimplemented `default`
+  constructor is never reported) and `constructor_no_name` (recovery must keep the nameless
+  constructor).
 
 ### 3.2 Declaration shapes — S each
 
 - [ ] `Name "X" already exists` 20 (12).
 - [ ] `Name "X" is reserved` for special-function declaration names, including
   DebugBreak variables, parameters, and global routines; preserve allowed dotted methods.
-- [ ] `Class reference expected` 11 (9).
+- [ ] `Class reference expected` 11 (9); distance 1: `new_class4`, `class_operator5` (comparing
+  a class reference with an object).
+- [ ] Interface-list checks: `"X" is not an interface` and `Interface "X" already implemented`
+  (`class_error4`, `class_error5`).
+- [ ] `Previous declaration of class was not "partial"` (`partial_class2`), and the type-end stop
+  before `already declared` (`unit_prefix4`).
 - [ ] `Class "X" isn't defined completely` 9 (7), and the `Interface` variant 4 (3).
 - [ ] `There is already a field with name "X"` 8 (4).
 - [ ] `"X" is not a method of class "Y"` 7 (4).
@@ -547,6 +548,8 @@ message shape; counts are lines (fixtures).
 - [ ] S Analyze a routine's body even when its declaration fails the overload check
   (`forwards_unit`, `IntToHex` error on line 23), and drop its spurious
   `Unit name does not match file name` warning.
+- [ ] S `@IntToStr` is ambiguous (`func_ptr_constant_ambiguous`), and an inline method body
+  must not see a field declared after it (`method_implem`).
 - [ ] S `Preconditions must be defined in the root method only` (`contracts_precondition`).
   Until then the runtime evaluates every `require` in the chain, root-most first.
 
@@ -567,7 +570,8 @@ single-fixture work; the per-suite list is in
 
 - [ ] `internal_unsupported`: `Length`/`Low`/`High` want `Invalid argument type` (reuse the
   `Assigned` check); `Inc` wants `Integer expected`.
-- [ ] `special_funcs4`: `Expression expected` for `Inc(i, )`.
+- [ ] `special_funcs4`, `default_params4`: `Expression expected` for an empty trailing argument
+  (`Inc(i, )`, `Test(1, )`).
 - [ ] `assign_untyped`: `Assignment's right-side-argument has no return type`, and
   `Cannot assign a value to the left-side argument` when assigning to a procedure name.
 - [ ] `assert`, `enum_byname`: `Boolean expected` anchored at the argument, not the call;
@@ -591,7 +595,18 @@ single-fixture work; the per-suite list is in
 - [ ] `class_const4`: `Constant Instruction - has no effect` as an **error** on a class-const
   declaration.
 - [ ] `enum_flags_overflow`: per-element position on `ast.EnumValue`.
-- [ ] Remaining silent FailureScripts fixtures from the audit.
+- [ ] `case_error6`: a void case selector gives `Expression expected` at `of` and skips the
+  label checks (upstream `ReadCase`).
+- [ ] Calling a type name: `Function expected` for a procedural type (`func_ptr2`,
+  `invalid_cast3`; upstream `CreateSimpleFuncExpr`), `Expression expected` for an empty cast
+  (`invalid_cast`, `invalid_cast2`).
+- [ ] `const_3`: `Invalid const type "procedure T"` at the type token.
+- [ ] `property_write5`: a write-only property followed by `.` or `[` stops with `Constant
+  expression expected` (upstream `ReadPropertyExpr`). After 2.2.
+- [ ] `contracts_old` (`Function or value expected`), `func_ptr_local` (local routine as a
+  delegate), `enum_scoped2` (`Flags enumerations cannot have user values`).
+- [ ] Remaining silent FailureScripts fixtures from the audit; distance 1: `class_var_dyn1`/`2`,
+  `external3`, `sealed`, `string_set`, `method1`, `method_implem7`.
 
 ### 4.5 Per-suite sweeps — M
 

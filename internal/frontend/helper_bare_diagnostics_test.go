@@ -69,7 +69,7 @@ func TestCompile_HelperGroupedReturnedCallable(t *testing.T) {
 		{"valid", "(item.Factory)(1);", nil},
 		{"short", "(item.Factory)();", []string{`Syntax Error: More arguments expected [line: 5, column: 15]`}},
 		{"type before excess", "(item.Factory)(true, 1);", []string{`Syntax Error: Argument 0 expects type "Integer" instead of "Boolean" [line: 5, column: 16]`}},
-		{"excess children", "(item.Factory)(1, Missing);", []string{`Syntax Error: Unknown name "Missing" [line: 5, column: 19]`, `Syntax Error: Too many arguments [line: 5, column: 15]`}},
+		{"excess children", "(item.Factory)(1, Missing);", []string{`Syntax Error: Unknown name "Missing" [line: 5, column: 19]`}},
 	} {
 		t.Run(tt.name, func(t *testing.T) { assertHelperCallDiagnostics(t, prefix+tt.use, tt.want) })
 	}

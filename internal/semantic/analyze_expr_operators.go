@@ -288,9 +288,8 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return nil
 		}
 
-		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
-		a.compileStopped = true
-		return nil
+		// ReadName raises this with AddCompilerStopFmt (dwsCompiler.pas:4910).
+		a.addCompilerStop(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
 	}
 
 	// Emit a hint when the identifier casing doesn't match its declaration.

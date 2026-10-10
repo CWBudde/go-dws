@@ -905,8 +905,7 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 	err := NewIncompatibleOperandsError(pos)
 	_, classTarget := types.GetUnderlyingType(targetType).(*types.ClassType)
 	if classTarget {
-		err.Stop = true
-		a.compileStopped = true
+		a.addCompilerStop(err)
 	}
 	a.addStructuredError(err)
 	return !classTarget, false
@@ -957,7 +956,7 @@ func (a *Analyzer) analyzeBlockWithReachability(stmt *ast.BlockStatement, root b
 		if !stmt.Truncated {
 			// A block cut short by a compiler stop was never left upstream, so
 			// its unused-variable hints were never made.
-			defer a.emitUnusedWarningsForCurrentScope()
+			defer a.emitUnusedWarningsOnCompletion()
 		}
 	}
 
@@ -978,7 +977,7 @@ func (a *Analyzer) analyzeWith(stmt *ast.WithStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	for _, decl := range stmt.Declarations {
 		a.analyzeVarDecl(decl)
@@ -1198,7 +1197,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	// Reusing an enclosing loop's control variable is an assignment to it. The
 	// warning comes first because upstream reports it while reading the header,

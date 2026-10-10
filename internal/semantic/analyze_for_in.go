@@ -22,7 +22,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	var existingLoopVarType types.Type
 	if !stmt.InlineVar {
@@ -174,7 +174,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 // DWScript splits the case in two: naming a *type* that is not an enumeration
 // is `Enumeration expected`, and the loop is still built, so the empty-body hint
 // follows it (`for_in2`); an expression that is not a container is
-// `Array expected`, and the loop is abandoned (`for_error3`).
+// `Array expected`, a compiler stop that abandons the compile (`for_error3`).
 func (a *Analyzer) reportNotEnumerable(collection ast.Expression, collectionType types.Type, pos lexer.Position, enumerable *bool) {
 	if a.namesType(collection) {
 		a.addStructuredError(NewEnumerationExpectedError(pos))
@@ -184,8 +184,9 @@ func (a *Analyzer) reportNotEnumerable(collection ast.Expression, collectionType
 	if collectionType != nil {
 		name = collectionType.String()
 	}
-	a.addStructuredError(NewCannotIndexTypeError(pos, name))
 	*enumerable = false
+	// ReadForIn raises this with AddCompilerStop (dwsCompiler.pas:6526).
+	a.addCompilerStop(NewCannotIndexTypeError(pos, name))
 }
 
 // namesType reports whether expr is a bare reference to a type rather than to a

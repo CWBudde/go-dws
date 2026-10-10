@@ -35,6 +35,18 @@ func (a *Analyzer) recordSymbolUsage(name string, pos token.Position) {
 	a.symbols.RecordUsage(name, pos)
 }
 
+// emitUnusedWarningsOnCompletion must be deferred directly, before restoring
+// the current scope. A compiler stop abandons this scope's completion checks;
+// rethrow the original panic so the stop boundary (or caller) still handles it.
+// Do not consult a.stopped: earlier deferred bodies can finish normally after
+// a stop in a later declaration and must retain their completion hints.
+func (a *Analyzer) emitUnusedWarningsOnCompletion() {
+	if interrupted := recover(); interrupted != nil {
+		panic(interrupted)
+	}
+	a.emitUnusedWarningsForCurrentScope()
+}
+
 // emitUnusedWarningsForCurrentScope emits DWScript-style warnings for
 // unused locals in the current scope. It intentionally skips parameters,
 // constants, read-only bindings, and injected symbols such as Self.

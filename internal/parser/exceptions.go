@@ -170,6 +170,10 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	// Parse try block
 	p.cursor = p.cursor.Advance() // move past 'try'
 	stmt.TryBlock = p.parseBlockStatementForTry()
+	if p.stopped() {
+		builder.FinishWithToken(stmt, p.cursor.Current())
+		return stmt
+	}
 
 	if stmt.TryBlock == nil {
 		// Use structured error
@@ -192,6 +196,10 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 		if stmt.ExceptClause == nil {
 			return nil
 		}
+		if p.stopped() {
+			builder.FinishWithToken(stmt, p.cursor.Current())
+			return stmt
+		}
 	}
 
 	// Check for finally clause
@@ -200,6 +208,10 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 		stmt.FinallyClause = p.parseFinallyClause()
 		if stmt.FinallyClause == nil {
 			return nil
+		}
+		if p.stopped() {
+			builder.FinishWithToken(stmt, p.cursor.Current())
+			return stmt
 		}
 	}
 
@@ -224,8 +236,9 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	currentToken = p.cursor.Current()
 	if currentToken.Type != lexer.END {
 		// Use structured error
-		p.addExpectedAt(currentToken, lexer.END)
-		return nil
+		p.addExpectedStopAt(currentToken, lexer.END)
+		builder.FinishWithToken(stmt, currentToken)
+		return stmt
 	}
 
 	// End position is at the 'end' keyword
@@ -242,7 +255,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 	}
 	block.Statements = []ast.Statement{}
 
-	for {
+	for !p.stopped() {
 		currentToken := p.cursor.Current()
 
 		// Termination conditions
@@ -263,6 +276,9 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
+		if p.stopped() {
+			break
+		}
 
 		// Advance to next token
 		p.cursor = p.cursor.Advance()
@@ -273,6 +289,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 		}
 	}
 
+	block.Truncated = p.stopped() || p.cursor.Current().Type == lexer.EOF
 	return block
 }
 
@@ -296,7 +313,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	p.cursor = p.cursor.Advance() // move past 'except'
 
 	// Parse exception handlers or bare except
-	for p.cursor.Current().Type == lexer.ON {
+	for !p.stopped() && p.cursor.Current().Type == lexer.ON {
 		handler := p.parseExceptionHandler()
 		if handler == nil {
 			hadHandlerError = true
@@ -304,6 +321,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 			break
 		}
 		clause.Handlers = append(clause.Handlers, handler)
+		if p.stopped() {
+			break
+		}
 
 		// Skip semicolons between handlers
 		for p.cursor.Current().Type == lexer.SEMICOLON {
@@ -311,6 +331,10 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		}
 	}
 
+	if p.stopped() {
+		builder.FinishWithToken(clause, p.cursor.Current())
+		return clause
+	}
 	if hadHandlerError {
 		for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
 			p.cursor = p.cursor.Advance()
@@ -331,7 +355,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		}
 		bareBlock.Statements = []ast.Statement{}
 
-		for {
+		for !p.stopped() {
 			currentToken := p.cursor.Current()
 
 			// Termination conditions
@@ -353,6 +377,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 			if stmt != nil {
 				bareBlock.Statements = append(bareBlock.Statements, stmt)
 			}
+			if p.stopped() {
+				break
+			}
 			p.cursor = p.cursor.Advance()
 
 			// Skip semicolons after statement
@@ -361,6 +388,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 			}
 		}
 
+		bareBlock.Truncated = p.stopped() || p.cursor.Current().Type == lexer.EOF
 		// Create a synthetic handler for bare except (catches all)
 		if len(bareBlock.Statements) > 0 {
 			handlerBuilder := p.StartNode()
@@ -376,7 +404,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	}
 
 	// Check for optional else block
-	if p.cursor.Current().Type == lexer.ELSE {
+	if !p.stopped() && p.cursor.Current().Type == lexer.ELSE {
 		p.cursor = p.cursor.Advance() // move past 'else'
 
 		// Parse else block statements until finally or end
@@ -385,7 +413,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		}
 		elseBlock.Statements = []ast.Statement{}
 
-		for {
+		for !p.stopped() {
 			currentToken := p.cursor.Current()
 
 			// Termination conditions
@@ -406,6 +434,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 			if stmt != nil {
 				elseBlock.Statements = append(elseBlock.Statements, stmt)
 			}
+			if p.stopped() {
+				break
+			}
 
 			p.cursor = p.cursor.Advance()
 
@@ -415,6 +446,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 			}
 		}
 
+		elseBlock.Truncated = p.stopped() || p.cursor.Current().Type == lexer.EOF
 		clause.ElseBlock = elseBlock
 	}
 
@@ -501,15 +533,22 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
 		// Use structured error
-		p.addExpectedAt(nextToken, lexer.DO)
-		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
-		return nil
+		// ReadExcept checks the reached type before stopping at a missing DO.
+		p.addExpectedStopAt(nextToken, lexer.DO)
+		builder.FinishWithToken(handler, currentToken)
+		return handler
 	}
 	p.cursor = p.cursor.Advance() // move to 'do'
 
 	// Parse handler statement
 	p.cursor = p.cursor.Advance() // move past 'do'
 	handler.Statement = p.parseStatement()
+	if p.stopped() {
+		// Keep the reached type and any retained statement prefix. Later
+		// handlers and the enclosing try's closer were never read.
+		builder.FinishWithToken(handler, p.cursor.Current())
+		return handler
+	}
 
 	if handler.Statement == nil {
 		// Use structured error
@@ -552,7 +591,7 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 	}
 	block.Statements = []ast.Statement{}
 
-	for {
+	for !p.stopped() {
 		currentToken := p.cursor.Current()
 
 		// Termination conditions
@@ -571,6 +610,9 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
+		if p.stopped() {
+			break
+		}
 
 		p.cursor = p.cursor.Advance()
 
@@ -580,6 +622,7 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 		}
 	}
 
+	block.Truncated = p.stopped() || p.cursor.Current().Type == lexer.EOF
 	clause.Block = block
 
 	return clause

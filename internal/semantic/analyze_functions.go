@@ -249,7 +249,7 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 	previousFunc := a.currentFunction
 	a.currentFunction = decl
 	defer func() { a.currentFunction = previousFunc }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	if decl.PreConditions != nil {
 		a.checkPreconditions(decl.PreConditions, decl.Name.Value)

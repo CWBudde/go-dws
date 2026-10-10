@@ -1,5 +1,141 @@
 # Progress log — October 2026
 
+## 2026-10-10 — Retained try and class-header checks (PLAN 2.1)
+
+The last fixture-backed carrier item now keeps the diagnostics emitted before a
+syntax stop. `FailureScripts/try_except1` reports `Class reference expected` at
+6:11 before `END expected` at 8:24; `FailureScripts/class_error4` reports
+`"Integer" is not an interface` before `")" expected`, both at 1:29.
+
+The parser retains completed handlers and reached ancestry entries. A stopped try
+body cannot read its handlers, and a stopped class header cannot read its body or
+run interface completion checks. The semantic handler check unwraps aliases and
+checks class types, matching upstream `ReadExcept`; its ordinary type error keeps
+checking reached handler statements. A real-path alias handler catches and prints
+`caught`. Post-sort restoration moves a parser stop after reached ordinary semantic errors at
+the same displayed position in the same source. It preserves the relative order of
+other diagnostics; private source identity keeps unit and main-file coordinates
+apart, including sources with empty filenames. All six mixed-source permutations
+and repeated sorting have regression coverage.
+
+Final branch review also corrected unit signature-stop boundaries: a later default-argument
+stop now retains diagnostics from earlier registered bodies in both unit declaration paths.
+Completion-hint cleanup emits only on normal completion across routines, methods, lambdas
+and blocks, preserving valid hints from earlier completed bodies after a later-source stop.
+The existing recovery classifier keeps its found marker across later completed-call siblings;
+a direct AST counterexample proved that invariant, while parsed-source impact was unproven.
+These are stop-contract regression controls, not additional PLAN contexts.
+
+Existing program and unit orchestration was split into helpers without changing
+source order or stop unwinding, resolving the branch's two CI complexity findings.
+
+Validation: `go test -race -coverprofile=… ./...`, CI diff lint
+(`golangci-lint run --new-from-merge-base=origin/main --timeout 10m`), tracked Go
+formatting, `go mod tidy -diff` and `go generate ./pkg/ast` pass. The generated visitor
+and dependencies are unchanged. Parser coverage increased from 79.73% to 79.87%.
+Full CLI `fixture-report --in-scope --classify --list-fails` finds exactly the two
+stable gains: FailureScripts rises from 327 to 329, with 103 distance-1 failures
+remaining overall. Its sole snapshot loss is the already documented `init_order3`;
+eight identical-binary repeats produce three orders, including the expected one.
+The BuildScripts baseline remains seven. Fixture baselines are ratcheted for the
+stable gains and checked again. No fixture expectation changed.
+
+The completed §2.1 checklist is removed from `PLAN.md`, with its measured total
+of +11 retained. This closes the named fixture-backed work; the architecture
+page still records differences from the broader target that have no closing
+fixture. Property-access consolidation (§2.2) remains open. PR:
+[#474](https://github.com/CWBudde/go-dws/pull/474).
+
+
+## 2026-10-10 — Single stop cut and re-classification (PLAN 2.1)
+
+- **One cut.** The frontend's `dropDiagnosticsAfterStop` now cuts every diagnostic of either
+  phase positioned after the earliest stop, so an early-emitted diagnostic positioned after a
+  later stop (a helper's redundant-specifier hint) no longer survives. The class-body filter and
+  the first-stop `break` in `semanticDiagnostics` are deleted; `Unknown name` stops in the
+  analyzer now, so `param_partial3` needs neither.
+- **Scanner cursor.** A stop raised after reading past its display position sets
+  `SemanticError.Cursor` (only `stopArrayLiteral` so far), which keeps `array_of_proc2`'s
+  element diagnostic.
+- **Re-classification.** `fixture-report --classify` on the branch shows 107 failures at
+  distance 1. Their first-diagnostic gaps are filed under Phases 1.6, 1.8, 2.3, 3 and 4 in
+  `PLAN.md`; `try_except1` and `class_error4` stay in 2.1 as truncated-node cases.
+
+No fixture changed through the cut; all tests are unchanged, with two new
+`TestCompile_AnalyzerStop` cases.
+
+## 2026-10-10 — Former 2.1 tails measured against the carrier (PLAN 2.1)
+
+The three tails deferred from the old 2.1 were measured against the truncated-call carrier.
+None of them is needed by a fixture, so all three are parked in
+[known divergences](../decisions/known-divergences.md):
+- `Default.Low(;`;
+- the casing hint inside `PrintLn(debugbreak(;`;
+- nonempty and EOF recovery after reintroduced-property brackets.
+
+`FailureScripts/debugbreak` and `property_reintroduce1`/`2` already pass.
+
+The same `--classify` run isolated three fixtures from the same family. All three now pass:
+- `enums8`: on an enumeration type name, `TElement.Name(` stops with
+  `There is no accessible method with name …` at the member before the arguments are read,
+  unless it is `ByName(…)` or `()` (upstream `ReadEnumerationSymbolName`). This applies to
+  truncated and completed calls.
+- `params3`: a truncated method call on a class receiver keeps the member's pedantic casing
+  hint. Upstream resolves the member before `ReadArguments` stops.
+- `class_cast`: in a `Name(…)` list, `;` separates only field initializers. After a positional
+  argument, `TMyObject(m;` stops with `")" expected` at the `;`, as upstream's `ReadArguments`
+  does.
+
+**Fixtures:** FailureScripts 324 → 327.
+
+## 2026-10-10 — Compile-stop model (PLAN 2.1)
+
+Compile stops now follow upstream's single-pass rule: nothing after the first compiler stop is
+reported. Design and current state: [`compile-stops.md`](../architecture/compile-stops.md).
+
+**Parser.**
+- `CallExpression`, `NewExpression`, `MethodCallExpression` and inherited calls keep their node,
+  marked `Truncated`, when a stop cuts their argument list.
+- The analyzer analyzes only the completed arguments. It never resolves a truncated call or
+  checks its argument count or types.
+- A block with a missing END is truncated too, so it emits no completion hints. This mirrors
+  upstream's `HintUnusedSymbols` after `AddCompilerStop(CPE_EndOfBlockExpected)`.
+
+**Analyzer.**
+- `addCompilerStop` raises a sentinel that is caught for each top-level statement and for each
+  deferred body.
+- After a stop, the analysis context is restored, later statements are skipped, and bodies
+  declared after the stop are not analyzed.
+- These messages now stop compilation, as upstream's `AddCompilerStop` sites do:
+  - `There is no accessible member` (all 13 sites);
+  - `Unknown name` in expression, callee, `@` and qualified-unit positions;
+  - for-in `Array expected`;
+  - `has no default property`;
+  - `Record type … is not fully defined`.
+- `Unknown name` now anchors at the name rather than at the call's `(`.
+- Two upstream stops stay ordinary errors here, because fixtures show upstream continuing in
+  those contexts: `Object reference needed` and `Class method or constructor expected`.
+
+**Frontend.**
+- `type_punctuation.go` and `refineDeferredPropertyCallDiagnostics` are deleted. When a parser
+  stop and an analyzer stop share a token, the analyzer's wins.
+- The analyzer, not the frontend, decides boundary-call stops.
+- Units get the same stop cut as programs.
+
+**Tests.**
+- The former `*ReadAllChildren` tests pinned go-dws's continue-after-error behaviour. They now
+  expect upstream's single diagnostic.
+- The builtin compatibility snapshot is regenerated, because unresolved arguments now stop.
+
+**Fixtures:**
+- FailureScripts 320 → 324: `missing_parenthesis1`, `block_unfinished2`, `except_error4`,
+  `except_error5`.
+- HelpersFail 12 → 13: `strict`.
+- `BuildScripts/init_order4` also passes, but it is order-dependent, so it is not ratcheted.
+
+**Validation:** `go test ./...` passes. The `cmd/fixture-report` test needs a tmpfs `TMPDIR`
+on FUSE mounts. The `TestDWScriptFixtures` gate passes.
+
 ## 2026-10-09 — Phase 2 restructured (PLAN review)
 
 This entry records no code change. It records a review of Phase 2 from four angles:
