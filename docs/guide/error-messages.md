@@ -207,6 +207,17 @@ Assigning to a constant or read-only binding reports
 
 ### Type-directed punctuation
 
+Completion hints are emitted only when their routine or block finishes. A semantic
+stop suppresses unused-local hints for interrupted work while preserving hints from
+earlier bodies that finish before a later-source stop.
+
+An interrupted `try` retains the handler types and statements reached before its
+syntax stop. A non-class handler type reports `Class reference expected` before
+`END expected`; class aliases such as `TAlias = Exception` are accepted. An
+interrupted class ancestry list likewise checks reached interface names before
+reporting its missing `)`. A reached semantic error at the same position as the
+parser stop appears first, with positions compared within the same source.
+
 Ordinary and routine-local record-typed constants require parenthesized field
 initializers. Missing `(`
 reports `"(" expected` at the first initializer token and stops compilation,

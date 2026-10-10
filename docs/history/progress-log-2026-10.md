@@ -1,5 +1,52 @@
 # Progress log — October 2026
 
+## 2026-10-10 — Retained try and class-header checks (PLAN 2.1)
+
+The last fixture-backed carrier item now keeps the diagnostics emitted before a
+syntax stop. `FailureScripts/try_except1` reports `Class reference expected` at
+6:11 before `END expected` at 8:24; `FailureScripts/class_error4` reports
+`"Integer" is not an interface` before `")" expected`, both at 1:29.
+
+The parser retains completed handlers and reached ancestry entries. A stopped try
+body cannot read its handlers, and a stopped class header cannot read its body or
+run interface completion checks. The semantic handler check unwraps aliases and
+checks class types, matching upstream `ReadExcept`; its ordinary type error keeps
+checking reached handler statements. A real-path alias handler catches and prints
+`caught`. Post-sort restoration moves a parser stop after reached ordinary semantic errors at
+the same displayed position in the same source. It preserves the relative order of
+other diagnostics; private source identity keeps unit and main-file coordinates
+apart, including sources with empty filenames. All six mixed-source permutations
+and repeated sorting have regression coverage.
+
+Final branch review also corrected unit signature-stop boundaries: a later default-argument
+stop now retains diagnostics from earlier registered bodies in both unit declaration paths.
+Completion-hint cleanup emits only on normal completion across routines, methods, lambdas
+and blocks, preserving valid hints from earlier completed bodies after a later-source stop.
+The existing recovery classifier keeps its found marker across later completed-call siblings;
+a direct AST counterexample proved that invariant, while parsed-source impact was unproven.
+These are stop-contract regression controls, not additional PLAN contexts.
+
+Existing program and unit orchestration was split into helpers without changing
+source order or stop unwinding, resolving the branch's two CI complexity findings.
+
+Validation: `go test -race -coverprofile=… ./...`, CI diff lint
+(`golangci-lint run --new-from-merge-base=origin/main --timeout 10m`), tracked Go
+formatting, `go mod tidy -diff` and `go generate ./pkg/ast` pass. The generated visitor
+and dependencies are unchanged. Parser coverage increased from 79.73% to 79.87%.
+Full CLI `fixture-report --in-scope --classify --list-fails` finds exactly the two
+stable gains: FailureScripts rises from 327 to 329, with 103 distance-1 failures
+remaining overall. Its sole snapshot loss is the already documented `init_order3`;
+eight identical-binary repeats produce three orders, including the expected one.
+The BuildScripts baseline remains seven. Fixture baselines are ratcheted for the
+stable gains and checked again. No fixture expectation changed.
+
+The completed §2.1 checklist is removed from `PLAN.md`, with its measured total
+of +11 retained. This closes the named fixture-backed work; the architecture
+page still records differences from the broader target that have no closing
+fixture. Property-access consolidation (§2.2) remains open. PR:
+[#474](https://github.com/CWBudde/go-dws/pull/474).
+
+
 ## 2026-10-10 — Single stop cut and re-classification (PLAN 2.1)
 
 - **One cut.** The frontend's `dropDiagnosticsAfterStop` now cuts every diagnostic of either

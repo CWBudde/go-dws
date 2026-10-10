@@ -389,50 +389,28 @@ angles (architecture, fixture leverage, history, docs) found three structural ca
 3. **No definition of done.** The "or a test through the real path" rule let contexts with no
    fixture behind them become closable tasks. See the definition of done under **Rules**.
 
-**Ordering.** 2.1 is the only part with direct fixture yield and the best leverage on the
-remaining distance-1 `*Fail` fixtures, so do it first. Do 2.2 before any further property-access
-work. 2.3 is independent: its items are S-sized one-offs that can run in parallel. 2.4 is not
-work, it is the parking list.
+**Ordering.** The fixture-backed work in 2.1 is complete. Do 2.2 before any further
+property-access work. 2.3 is independent: its items are S-sized one-offs that can run in
+parallel. 2.4 is not work, it is the parking list.
 
-### 2.1 Compile-stop model — M
+### 2.1 Compile-stop model — completed
 
-Replace the separate stop mechanisms with one model: the parser marks a truncated call, the
-analyzer genuinely stops, and the frontend makes one position cut. Design and current state:
-[`compile-stops.md`](docs/architecture/compile-stops.md).
+Completed in [#474](https://github.com/CWBudde/go-dws/pull/474). The parser retains
+reached prefixes, the analyzer raises real stops, and the frontend cuts later diagnostics
+per source. The last carrier fixes keep the handler check in `try_except1` and the interface
+check in `class_error4`; class aliases are accepted in typed handlers.
 
-Measured yield so far: +9 fixtures.
+Measured yield: +11 fixtures.
 - `missing_parenthesis1`, `block_unfinished2`, `except_error4`, `except_error5`, `enums8`,
-  `params3` and `class_cast` in FailureScripts.
+  `params3`, `class_cast`, `try_except1` and `class_error4` in FailureScripts (320 → 329).
 - `HelpersFail/strict`.
 - `BuildScripts/init_order4`, which is order-dependent, so it is not ratcheted.
 
-`static_methods` is not a target: its only extra line is the `{$FATAL}` stop itself (see
-[known divergences](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written)).
-
-- [x] S Write `docs/architecture/compile-stops.md`: upstream model, current mechanisms, target
-  design, and the §1.3 invariants formerly listed under 2.4.
-- [x] M Parser: one `Truncated` carrier on every call form, `inherited` included; the analyzer
-  analyzes only completed arguments (`missing_parenthesis1`).
-- [x] M Analyzer: real stops via `addCompilerStop` (`internal/semantic/compile_stop.go`),
-  mapped from upstream's `AddCompilerStop` sites (`HelpersFail/strict`, `except_error4`/`5`).
-- [x] S Frontend: delete `type_punctuation.go` and the deferred-call refine pass; the analyzer
-  decides boundary-call stops; apply the stop cut to units.
-- [x] S Drop completion hints of blocks cut by a missing END (`block_unfinished2`).
-- [x] S Re-run `--classify` (2026-10-10: 107 failures at distance 1) and move the
-  first-diagnostic gaps the stop cut isolated into Phases 1, 2.3, 3 and 4.
-- [x] S Carrier: resolve a truncated call's member before its argument stop (`enums8`), keep
-  its casing hint (`params3`); `;` after a positional argument stops with `")" expected`
-  (`class_cast`).
-- [ ] S Carrier: the truncated `try` drops the handler check before `END expected`
-  (`try_except1`; the check itself is also go-native and rejects `TAlias = Exception`), and the
-  truncated class header drops the interface check before `")" expected` (`class_error4`).
-- [x] S Finish the single cut in the frontend: the earliest stop of either phase cuts every
-  later diagnostic, early-emitted ones included; the class-body filter and the first-stop
-  `break` are deleted. A stop raised after reading past its display position carries
-  `SemanticError.Cursor` (`array_of_proc2`).
-- [x] S Measure the former 2.1 tails (`Default.Low(;`, casing hints in `PrintLn(debugbreak(;`,
-  reintroduced-property bracket recovery): no fixture needs them, parked in
-  [known divergences](docs/decisions/known-divergences.md).
+Design, current mechanisms and broader unmeasured targets:
+[`compile-stops.md`](docs/architecture/compile-stops.md). Shipped behavior and verification:
+[October progress log](docs/history/progress-log-2026-10.md#2026-10-10--retained-try-and-class-header-checks-plan-21).
+`static_methods` remains a [known divergence](docs/decisions/known-divergences.md#fixtures-that-cannot-pass-as-written);
+former tails without fixture demand remain parked there.
 
 ### 2.2 Property-access consolidation — M (refactor, no new behaviour)
 

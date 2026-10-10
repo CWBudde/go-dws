@@ -1,7 +1,7 @@
 # Compile stops
 
 How a compiler stop ends compilation in upstream DWScript, how go-dws implements it today,
-and the remaining steps of the model `PLAN.md` §2.1 moves towards. Line references are as of branch
+and the broader target behind the fixture-backed work completed in `PLAN.md` §2.1. Line references are as of branch
 `feat/compile-stop-model` (October 2026). Upstream references are to
 `DWScript-Language-Server/DWScript/Source`.
 
@@ -86,6 +86,14 @@ before ordering the result.
 - A block cut short by a missing `END` is kept with `BlockStatement.Truncated`
   (`pkg/ast/ast.go`); the analyzer then skips the block's completion hints
   (`isTruncatedBlock`, `analyze_statements.go:1513`; `unused_warnings.go`).
+- A stopped `try` retains its reached body and handlers. Handler type checks unwrap aliases
+  and accept class types, as upstream `ReadExcept` does; a non-class type emits the ordinary
+  `Class reference expected` error before the parser stop (`try_except1`). A stop in the
+  protected body prevents the parser from reading handlers.
+- A class header retains reached ancestry names and marks `ClassDecl.AncestryTruncated`
+  when its list is interrupted. The analyzer validates reached interface names before
+  returning, without parsing members or checking interface implementation (`class_error4`).
+  A complete header is also validated before a later body stop.
 
 ### 2.2 Truncated calls: one carrier
 
@@ -132,6 +140,12 @@ provisional parser stops (`dropProvisional`, `result.go:347`).
   context the unwinding skipped. `recoverCompileStop` ends an entry point. Deferred bodies
   declared before the stop still run (`insertionPrecedesStop`), because upstream compiled them
   first.
+- Unit signature registration uses the same local stop recovery as program signatures.
+  A later signature stop skips the interrupted and later declarations while still analyzing
+  already registered bodies before that stop.
+- Unused-symbol completion cleanup emits hints only on normal completion. Semantic-stop
+  unwinding rethrows before hint emission across routines, methods, lambdas and blocks;
+  earlier deferred bodies that complete normally still retain their hints.
 - About 45 sites raise a stop, among them the unknown name in an expression (`ReadName`),
   `"(" expected`, `Not a method`, `Class reference expected`, member-not-found
   (`NewAccessibleMemberError`, `CPE_UnknownMemberForType`), cast targets and the deferred
@@ -173,6 +187,10 @@ provisional parser stops (`dropProvisional`, `result.go:347`).
    errors vs. hints, the deferred forward bucket, after-children stops, arity and static-class
    priority, parser order, phase, and specificity. `restoreDeclarationDiagnosticOrder`
    (`declaration_diagnostics.go:12`) runs between the two sorts.
+   After each sort, `restoreParserStopDiagnosticOrder` moves a typed parser stop after
+   ordinary semantic errors at the same displayed position in its own source. Private
+   source identity distinguishes main-file and unit coordinates, including unnamed sources;
+   the move preserves the relative order of all other diagnostics.
 5. A merge with unit diagnostics, then `sortDiagnostics`, `filterDiagnostics` (`:894`) and
    `sortDiagnostics` again. `filterDiagnostics` is a set of **text filters**: `Name expected`
    dedup within 8 columns; `Expression expected before COLON`; the `must have either a type
@@ -226,13 +244,15 @@ tokenization instead (`StoppedByFatal`), and the parser suppresses the truncatio
 **Status.** Steps 1 and 2 are in place for the call forms and the sites listed in §2.2–§2.3;
 `refineTypePunctuationDiagnostics` and `refineDeferredPropertyCallDiagnostics` are deleted.
 The `semanticDiagnostics` `break` and the class-body text filter are deleted; the main file's
-cut now covers every phase. Still open:
+cut now covers every phase. The measured fixture-backed §2.1 checklist is complete.
+The broader target still differs in these respects; these are not additional fixture-backed
+closure tasks:
 
 - The statement-boundary call keeps a provisional parser error as the parse-only fallback,
   and `confirmDeferredCallStops` for nested lists.
 - `{$FATAL}` and malformed constants are not stops in the cut, and the cut is by display
   position except for stops that carry a `Cursor`; the completion-point rule (step 3) covers
-  only blocks cut by a missing `END`.
+  blocks cut by a missing `END` and unused-symbol cleanup interrupted by a semantic stop.
 - `dropDiagnosticsAfterStop` and `reachedLexerDiagnostics` remain as two halves of the cut;
   the remaining text filters in `filterDiagnostics` remain.
 
@@ -271,6 +291,8 @@ preserve them.
 | `FailureScripts/constructor_invalid_param` | Must keep passing | Passes: no arity check on the truncated `new TMyClass(1 1` |
 | `FailureScripts/param_partial3` | Must keep passing | Passes: the unknown name is an analyzer stop, so the cut drops the unfinished class body |
 | `FailureScripts/array_of_proc2` | Must keep passing | Passes: the array-element stop cuts at its `Cursor` (§2.3) |
+| `FailureScripts/try_except1` | Reached handler type check before missing `END` | Passes |
+| `FailureScripts/class_error4` | Reached interface check before missing `)` | Passes |
 | `FailureScripts/static_methods` | Known divergence, not a target | Upstream omits its own `{$FATAL}` line (`docs/decisions/known-divergences.md`) |
 
 Run `--classify` after each step, and move the newly isolated first-diagnostic gaps into
