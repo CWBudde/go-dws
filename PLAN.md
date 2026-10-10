@@ -426,11 +426,10 @@ Measured yield so far: +9 fixtures.
 - [ ] S Carrier: the truncated `try` drops the handler check before `END expected`
   (`try_except1`; the check itself is also go-native and rejects `TAlias = Exception`), and the
   truncated class header drops the interface check before `")" expected` (`class_error4`).
-- [ ] S Finish the single cut in the frontend:
-  - A semantic diagnostic that was emitted early but is positioned after a later semantic stop
-    is not cut yet, for example a helper's redundant-specifier hint.
-  - Now that `Unknown name` stops, remove the class-body filter in `semanticDiagnostics` and
-    its first-stop `break`, unless the measurement shows they are still needed.
+- [x] S Finish the single cut in the frontend: the earliest stop of either phase cuts every
+  later diagnostic, early-emitted ones included; the class-body filter and the first-stop
+  `break` are deleted. A stop raised after reading past its display position carries
+  `SemanticError.Cursor` (`array_of_proc2`).
 - [x] S Measure the former 2.1 tails (`Default.Low(;`, casing hints in `PrintLn(debugbreak(;`,
   reintroduced-property bracket recovery): no fixture needs them, parked in
   [known divergences](docs/decisions/known-divergences.md).
