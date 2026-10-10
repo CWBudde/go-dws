@@ -1,5 +1,22 @@
 # Progress log — October 2026
 
+## 2026-10-10 — Single stop cut and re-classification (PLAN 2.1)
+
+- **One cut.** The frontend's `dropDiagnosticsAfterStop` now cuts every diagnostic of either
+  phase positioned after the earliest stop, so an early-emitted diagnostic positioned after a
+  later stop (a helper's redundant-specifier hint) no longer survives. The class-body filter and
+  the first-stop `break` in `semanticDiagnostics` are deleted; `Unknown name` stops in the
+  analyzer now, so `param_partial3` needs neither.
+- **Scanner cursor.** A stop raised after reading past its display position sets
+  `SemanticError.Cursor` (only `stopArrayLiteral` so far), which keeps `array_of_proc2`'s
+  element diagnostic.
+- **Re-classification.** `fixture-report --classify` on the branch shows 107 failures at
+  distance 1. Their first-diagnostic gaps are filed under Phases 1.6, 1.8, 2.3, 3 and 4 in
+  `PLAN.md`; `try_except1` and `class_error4` stay in 2.1 as truncated-node cases.
+
+No fixture changed through the cut; all tests are unchanged, with two new
+`TestCompile_AnalyzerStop` cases.
+
 ## 2026-10-10 — Former 2.1 tails measured against the carrier (PLAN 2.1)
 
 The three tails deferred from the old 2.1 were measured against the truncated-call carrier.
