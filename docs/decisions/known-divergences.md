@@ -51,6 +51,19 @@ fixture, a user report, or an upstream test).
   - Reopen only after the property-resolver consolidation (PLAN 2.2).
 - Qualified builtin calls through `Internal`/`System` (`Internal.Abs(-3)`), and method-call
   syntax on those qualifiers.
+- Former PLAN 2.1 tails, measured against the truncated-call carrier (October 2026). No fixture
+  contains these shapes:
+  - `Default.Low(;` reports the parser's `Expression expected` at the `;`. Upstream stops
+    earlier with `Unknown name "Default.Low"` at the member token, as the completed
+    `Default.Low(Integer)` already does. The enumeration-type form of the same shape
+    (`TElement.low(;`, `FailureScripts/enums8`) is fixed.
+  - `PrintLn(debugbreak(;` drops the pedantic casing hint for `debugbreak` and reports only
+    `")" expected`. The top-level `debugbreak(;` keeps it, and `FailureScripts/debugbreak`
+    passes.
+  - Nonempty and EOF recovery after reintroduced-property brackets. `t.Prop2(1;` reports two
+    `")" expected` errors without the compatibility hint, and `t.Prop2(` at EOF reports
+    `";" expected` before `")" expected`. The shipped `t.Prop2(;` recovery passes
+    (`property_reintroduce1`/`2`).
 - `ConditionalDefined(s)` always folds to `False`: `{$DEFINE}` symbols live in preprocessor state
   the analyzer cannot reach. Argument validation is complete.
 

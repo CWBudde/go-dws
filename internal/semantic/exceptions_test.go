@@ -229,8 +229,39 @@ func TestInvalidExceptionTypeInHandler(t *testing.T) {
 	}
 
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, "Exception") || !strings.Contains(errMsg, "Integer") {
-		t.Errorf("Expected error about Exception type compatibility, got: %s", errMsg)
+	if !strings.Contains(errMsg, "Class reference expected") {
+		t.Errorf("Expected class reference diagnostic, got: %s", errMsg)
+	}
+}
+
+func TestAnalyze_RemainingCarrierPrefixes(t *testing.T) {
+	for _, tt := range []struct {
+		name, source, message string
+		line, column          int
+	}{
+		{"try handlers", "type TAlias = Exception;\ntry\nexcept\non e: Integer do ;\non e: TAlias do ;", "Class reference expected", 4, 7},
+		{"class ancestry", "type TTest = class(TObject, Integer\nprocedure Unread;\nend;", `"Integer" is not an interface`, 1, 29},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			p := parser.New(lexer.New(tt.source))
+			program := p.ParseProgram()
+			if errs := p.Errors(); len(errs) != 1 || !errs[0].Stop {
+				t.Fatalf("parser errors = %v, want a compiler stop", errs)
+			}
+			a := NewAnalyzer()
+			a.SetParseHadErrors(true)
+			a.SetCompileStopped(true)
+			if err := a.Analyze(program); err == nil {
+				t.Fatal("expected the reached prefix diagnostic")
+			}
+			errs := a.StructuredErrors()
+			if len(a.Errors()) != 1 || len(errs) != 1 {
+				t.Fatalf("semantic errors = %v, want only the reached check", a.Errors())
+			}
+			if got := errs[0]; got.Message != tt.message || got.Pos.Line != tt.line || got.Pos.Column != tt.column || got.Stop {
+				t.Fatalf("semantic diagnostic = %#v, want ordinary %q at %d:%d", got, tt.message, tt.line, tt.column)
+			}
+		})
 	}
 }
 

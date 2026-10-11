@@ -320,13 +320,15 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 	// Advance to first item
 	p.cursor = p.cursor.Advance()
 
-	// Parse first expression
+	// Parse first expression. An item cut short by a compiler stop is not
+	// kept (see completedArgument).
+	mark := len(p.errors)
 	expr := p.parseExpression(LOWEST)
-	if expr != nil {
+	confirmed := p.confirmDeferredCallStops(errorStart)
+	if p.completedArgument(expr, mark) {
 		list = append(list, expr)
 	}
-
-	if p.confirmDeferredCallStops(errorStart) {
+	if confirmed {
 		return list
 	}
 
@@ -357,11 +359,13 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 
 			// Move from current comma to the next expression.
 			p.cursor = p.cursor.Advance()
+			mark = len(p.errors)
 			expr = p.parseExpression(LOWEST)
-			if expr != nil {
+			confirmed = p.confirmDeferredCallStops(errorStart)
+			if p.completedArgument(expr, mark) {
 				list = append(list, expr)
 			}
-			if p.confirmDeferredCallStops(errorStart) {
+			if confirmed {
 				return list
 			}
 			continue
@@ -388,11 +392,13 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 			p.cursor = p.cursor.Advance()
 
 			// Parse next expression
+			mark = len(p.errors)
 			expr = p.parseExpression(LOWEST)
-			if expr != nil {
+			confirmed = p.confirmDeferredCallStops(errorStart)
+			if p.completedArgument(expr, mark) {
 				list = append(list, expr)
 			}
-			if p.confirmDeferredCallStops(errorStart) {
+			if confirmed {
 				return list
 			}
 			continue

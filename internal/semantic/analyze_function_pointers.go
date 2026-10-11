@@ -366,7 +366,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 			return funcPtrType
 		}
 
-		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcName))
+		a.addCompilerStop(NewUnknownNameError(expr.Token.Pos, funcName))
 		return nil
 	}
 

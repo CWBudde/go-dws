@@ -57,6 +57,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Ty
 	case *ast.MemberAccessExpression:
 		return a.analyzeMemberAccessExpression(e)
 	case *ast.MethodCallExpression:
+		if e.StopDeferred {
+			return a.analyzeStopDeferredCall(e)
+		}
 		return a.analyzeMethodCallExpression(e)
 	case *ast.ArrayLiteralExpression:
 		return a.analyzeArrayLiteral(e, nil)
@@ -318,18 +321,16 @@ func (a *Analyzer) analyzeCastTarget(target ast.TypeExpression, right ast.Expres
 	defer func() {
 		// Unknown names while reading a cast/check target stop upstream's term
 		// reader. Preserve that stop in both analyzer state and the emitted stream.
-		for _, diagnostic := range a.structuredErrors[firstDiagnostic:] {
-			if diagnostic.Type == ErrorGeneric && strings.HasPrefix(diagnostic.Message, "Unknown name ") {
-				diagnostic.Stop = true
-				a.compileStopped = true
-				break
-			}
-		}
 		if target != nil {
 			a.semanticInfo.SetResolvedType(target, result)
 		}
 		if right != nil {
 			a.semanticInfo.SetResolvedType(right, result)
+		}
+		for _, diagnostic := range a.structuredErrors[firstDiagnostic:] {
+			if diagnostic.Type == ErrorGeneric && strings.HasPrefix(diagnostic.Message, "Unknown name ") {
+				a.raiseCompileStop(diagnostic)
+			}
 		}
 	}()
 	if right != nil {
@@ -487,8 +488,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		}
 	case *types.ClassOfType:
 		if !isMeta {
-			a.addStructuredError(&SemanticError{Type: ErrorInvalidOperation, Message: "Class reference expected", Pos: expr.Token.Pos, Severity: SeverityError, Stop: true})
-			a.compileStopped = true
+			a.addCompilerStop(&SemanticError{Type: ErrorInvalidOperation, Message: "Class reference expected", Pos: expr.Token.Pos, Severity: SeverityError})
 			return nil
 		}
 		if !types.IsClassRelated(source.ClassType, meta.ClassType) {

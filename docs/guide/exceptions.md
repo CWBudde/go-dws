@@ -109,6 +109,11 @@ end;
 
 Catch specific exception types with typed handlers.
 
+Handler type checks resolve aliases: `TAlias = Exception` is a valid handler type.
+The declared type must resolve to a class; a scalar type reports
+`Class reference expected`. Raising an object still requires an `Exception`
+descendant.
+
 **Syntax**:
 ```pascal
 try
@@ -598,11 +603,11 @@ except
 end;
 ```
 
-**ERROR - Non-exception type**:
+**ERROR - Non-class type**:
 ```pascal
 try
 except
-  on e: Integer do ;  // ERROR: must be Exception type
+  on e: Integer do ;  // ERROR: Class reference expected
 end;
 ```
 

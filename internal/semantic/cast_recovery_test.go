@@ -55,7 +55,7 @@ func TestCastRecovery_ResultTypes(t *testing.T) {
 
 func TestCastRecovery_CompilerStop(t *testing.T) {
 	a := parseAndAnalyze(t, "var c: TClass; var o: TObject; c := c as o; Missing;")
-	if !a.compileStopped {
+	if !a.compileStopped() {
 		t.Fatal("analyzer did not stop")
 	}
 	errs := a.StructuredErrors()

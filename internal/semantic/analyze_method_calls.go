@@ -4,19 +4,38 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
+
+// analyzeStopDeferredCall analyzes a call the parser cut at a statement
+// boundary without deciding whether that is a stop (ast.MethodCallExpression.
+// StopDeferred): upstream's ReadPropertyExpr recovers a reintroduced property
+// read there and goes on, while ReadArguments stops with "Expression expected".
+// Decide it now that the member is resolved.
+func (a *Analyzer) analyzeStopDeferredCall(expr *ast.MethodCallExpression) types.Type {
+	result := a.analyzeMethodCallExpression(expr)
+	if a.semanticInfo.PropertyRead(expr) == nil {
+		pos := expr.FirstArgumentToken.Pos
+		if expr.FirstArgumentToken.Type == token.EOF {
+			pos = expr.ParenPos // a stop at EOF is anchored on the last token
+		}
+		a.addCompilerStop(NewGenericError(pos, "Expression expected"))
+	}
+	return result
+}
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
-	if expr.Incomplete {
+	a.stopEnumerationTypeCall(expr)
+	if expr.Truncated {
 		if name, ok := expr.Object.(*ast.Identifier); ok && !a.specialFunctionHasShadow(name.Value) {
-			return a.analyzeIncompleteMemberCall(expr)
+			return a.analyzeTruncatedCall(expr.Arguments)
 		}
 	}
 	if name, ok := expr.Object.(*ast.Identifier); ok {
 		if _, imported := a.importedUnitNamespace(name.Value); imported {
-			if expr.Incomplete {
-				return a.analyzeIncompleteMemberCall(expr)
+			if expr.Truncated {
+				return a.analyzeTruncatedCall(expr.Arguments)
 			}
 			return a.analyzeCallExpression(&ast.CallExpression{
 				BaseNode:  expr.BaseNode,
@@ -28,14 +47,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x). Recognized
 	// before `JSON` is analyzed as an ordinary (undefined) identifier.
 	if a.isJSONNamespace(expr.Object) {
-		if expr.Incomplete {
-			return a.analyzeIncompleteMemberCall(expr)
+		if expr.Truncated {
+			return a.analyzeTruncatedCall(expr.Arguments)
 		}
 		return a.analyzeJSONNamespaceResult(expr.Method.Value, expr.Arguments)
 	}
 	if a.isDefaultNamespace(expr.Object) {
-		if expr.Incomplete {
-			return a.analyzeIncompleteMemberCall(expr)
+		if expr.Truncated {
+			return a.analyzeTruncatedCall(expr.Arguments)
 		}
 		builtinCall := &ast.CallExpression{
 			BaseNode:  ast.BaseNode{Token: expr.Token},
@@ -51,13 +70,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Analyze the object expression
 	objectType := a.analyzeProbedReceiver(expr.Object)
 	if helper, ok := objectType.(*types.HelperType); ok {
-		if expr.Incomplete {
-			return a.analyzeIncompleteMemberCall(expr)
+		if expr.Truncated {
+			return a.analyzeTruncatedCall(expr.Arguments)
 		}
 		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Method, expr.Arguments); handled {
 			return result
 		}
-		a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, helper.Name))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, helper.Name))
 		return nil
 	}
 	if objectType == nil {
@@ -92,8 +111,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return result
 		}
 	}
-	if expr.Incomplete {
-		return a.analyzeIncompleteMemberCall(expr)
+	if expr.Truncated {
+		// Upstream resolves the member before ReadArguments stops, so its
+		// casing hint precedes the stop (FailureScripts/params3).
+		if propertyClass != nil {
+			a.addIdentifierCaseHint(expr.Method, a.declaredClassMemberName(propertyClass, expr.Method.Value))
+		}
+		return a.analyzeTruncatedCall(expr.Arguments)
 	}
 
 	// Method call on a JSONVariant receiver: v.TypeName(), v.Add(x), ...
@@ -135,7 +159,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if !found {
 			helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 			if !found {
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+				a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return nil
 			}
 			if helperMethod == nil {
@@ -200,7 +224,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// Method not found in record, check if a helper provides it
 				helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 				if !found {
-					a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+					a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 					return nil
 				}
 				if helperMethod == nil {
@@ -251,7 +275,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				a.analyzeCallArgument(0, expr.Arguments[0], expectedElemType)
 				return types.VOID
 			default:
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
+				a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
 					a.setTypeDiagnosticName(setReceiverType)))
 				return nil
 			}
@@ -268,7 +292,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Check if helpers provide this method for non-class, non-record types
 		helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 		if !found {
-			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 
@@ -456,7 +480,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			}
 			return a.analyzeFunctionPointerCallArgs(expr.Arguments, callableType, expr.Token.Pos)
 		} else {
-			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 	}
@@ -502,4 +526,29 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return classType
 	}
 	return methodType.ReturnType
+}
+
+// stopEnumerationTypeCall mirrors upstream's ReadEnumerationSymbolName: on an
+// enumeration type name, `TEnum.Name(` is accepted only as `ByName(…)` or an
+// empty `()` pair. Any other call stops at the member before its arguments are
+// read, so the stop precedes a truncated argument list's own stop.
+func (a *Analyzer) stopEnumerationTypeCall(expr *ast.MethodCallExpression) {
+	if !expr.Truncated && len(expr.Arguments) == 0 {
+		return
+	}
+	name, ok := expr.Object.(*ast.Identifier)
+	if !ok || expr.Method == nil || ident.Equal(expr.Method.Value, "ByName") {
+		return
+	}
+	// Only the type's own name: a variable, parameter or member of that
+	// enumeration type resolves to an ordinary symbol.
+	symbol, found := a.symbols.Resolve(name.Value)
+	if !found || !symbol.IsEnumTypeName {
+		return
+	}
+	enumType, ok := symbol.Type.(*types.EnumType)
+	if !ok {
+		return
+	}
+	a.addCompilerStop(NewUnknownMethodForTypeError(expr.Method.Token.Pos, expr.Method.Value, enumType.Name))
 }

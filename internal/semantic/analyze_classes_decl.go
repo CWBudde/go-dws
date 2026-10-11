@@ -462,6 +462,15 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	if !a.validateClassInheritance(classType, parentClass, decl, className) {
 		return
 	}
+	// ReadClass checks each ancestry name before reading the body. These
+	// ordinary errors must survive a later header or member compiler stop.
+	for _, ifaceIdent := range decl.Interfaces {
+		a.resolveClassInterface(ifaceIdent, decl)
+	}
+	if decl.AncestryTruncated {
+		// A stopped header has no body or implementation checks.
+		return
+	}
 
 	// Analyze constants in two passes to allow forward references.
 	constantNames := make(map[string]bool)
@@ -795,7 +804,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	// Record class methods have no Self; only class-side members are in scope.
 	previousClassMethod := a.inClassMethod
@@ -871,7 +880,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	previousFunc := a.currentFunction
 	a.currentFunction = decl
 	defer func() { a.currentFunction = previousFunc }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	a.checkPreconditions(decl.PreConditions, decl.Name.Value)
 	if decl.Body != nil {
@@ -1182,7 +1191,7 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	a.symbols.classMethodOwner = classType
 	a.symbols.classMethodStatic = deferred.isStatic
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	a.defineMethodScopeMembers(method, classType)
 	// Mark these exact synthetic bindings before parameters/locals replace them.
@@ -1222,7 +1231,7 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	previousInClassMethod := a.inClassMethod
 	a.inClassMethod = method.IsClassMethod
 	defer func() { a.inClassMethod = previousInClassMethod }()
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	a.checkPreconditions(method.PreConditions, method.Name.Value)
 	if method.Body != nil {

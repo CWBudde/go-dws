@@ -178,8 +178,7 @@ func TestAnalyzeExceptionHandlerEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("Handler with non-exception type", func(t *testing.T) {
-		// This tests the error path at line 86-89
+	t.Run("Handler with an ordinary class type", func(t *testing.T) {
 		input := `
 		type TNonException = class
 		end;
@@ -197,17 +196,9 @@ func TestAnalyzeExceptionHandlerEdgeCases(t *testing.T) {
 			t.Fatal("analysis failed")
 		}
 
-		// Should have error about type not being Exception
-		hasError := false
-		for _, errStr := range analyzer.Errors() {
-			if contains(errStr, "must be Exception") {
-				hasError = true
-				break
-			}
-		}
-
-		if !hasError {
-			t.Error("expected error about non-exception type")
+		// ReadExcept requires a class reference, not Exception ancestry.
+		if errs := analyzer.Errors(); len(errs) != 0 {
+			t.Errorf("ordinary class handler should be valid, got %v", errs)
 		}
 	})
 

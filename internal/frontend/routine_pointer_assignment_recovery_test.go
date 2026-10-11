@@ -42,9 +42,6 @@ func TestCompile_RoutinePointerAssignmentRecovery(t *testing.T) {
 				if message == "Assignment's right-side-argument has no return type" || message == "Incompatible operands" {
 					column = 3
 				}
-				if tt.name == "unknown callee" {
-					column = 14
-				}
 				if tt.name == "nested bad arity" {
 					column = 11
 				}

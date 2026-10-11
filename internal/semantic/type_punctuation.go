@@ -14,9 +14,7 @@ func identifierLookaheadPos(identifier *ast.Identifier) token.Position {
 
 func (a *Analyzer) addPunctuationStop(pos token.Position, message string) {
 	diagnostic := NewGenericError(pos, message)
-	diagnostic.Stop = true
-	a.compileStopped = true
-	a.addStructuredError(diagnostic)
+	a.addCompilerStop(diagnostic)
 }
 
 func (a *Analyzer) addUnexpectedAddressOf(pos token.Position) {

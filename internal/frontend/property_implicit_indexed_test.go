@@ -23,7 +23,7 @@ func TestCompile_ImplicitIndexedCompatibility(t *testing.T) {
 		{"type", "begin Result := Prop()[True]; end;", hint + "\nSyntax Error: Argument 0 expects type \"Integer\" instead of \"Boolean\" [line: 8, column: 22]", semantic.HintsLevelNormal},
 		{"extra", "begin Result := Prop()[1, 2]; end;", hint + "\nSyntax Error: Too many arguments [line: 8, column: 22]", semantic.HintsLevelNormal},
 		{"type suppresses count", "begin Result := Prop()[True, 2]; end;", hint + "\nSyntax Error: Argument 0 expects type \"Integer\" instead of \"Boolean\" [line: 8, column: 22]", semantic.HintsLevelNormal},
-		{"child precedes count", "begin Result := Prop()[1, Missing]; end;", hint + "\nSyntax Error: Unknown name \"Missing\" [line: 8, column: 27]\nSyntax Error: Too many arguments [line: 8, column: 22]", semantic.HintsLevelNormal},
+		{"child precedes count", "begin Result := Prop()[1, Missing]; end;", hint + "\nSyntax Error: Unknown name \"Missing\" [line: 8, column: 27]", semantic.HintsLevelNormal},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestCompile_ImplicitIndexedAccessorContexts(t *testing.T) {
 		{"deprecated casing order", strings.Replace(prefix, "read Get reintroduce;", "read Get reintroduce; deprecated 'old';", 1) + "begin Result := pRoP()[3]; end;", "Hint: \"pRoP\" does not match case of declaration (\"Prop\") [line: 7, column: 17]\nWarning: \"Prop\" has been deprecated: old [line: 7, column: 17]\n" + hint},
 		{"static caller", strings.Replace(strings.Replace(prefix, " function Read: Integer;", " class function Read: Integer; static;", 1), "function TTest.Read", "class function TTest.Read", 1) + "begin Result := Prop()[Missing]; Other; end;", "Syntax Error: Object reference needed to read/write an object field [line: 7, column: 17]"},
 		{"instance getter in class caller", strings.Replace(strings.Replace(prefix, " function Read", " class function Read", 1), "function TTest.Read", "class function TTest.Read", 1) + "begin Result := Prop()[3]; end;", hint + "\nSyntax Error: Read access of property should be a static method [line: 7, column: 22]\nSyntax Error: Class method or constructor expected [line: 7, column: 22]"},
-		{"child precedes class eligibility", strings.Replace(strings.Replace(prefix, " function Read", " class function Read", 1), "function TTest.Read", "class function TTest.Read", 1) + "begin Result := Prop()[Missing]; end;", hint + "\nSyntax Error: Unknown name \"Missing\" [line: 7, column: 24]\nSyntax Error: Read access of property should be a static method [line: 7, column: 22]\nSyntax Error: Class method or constructor expected [line: 7, column: 22]"},
+		{"child precedes class eligibility", strings.Replace(strings.Replace(prefix, " function Read", " class function Read", 1), "function TTest.Read", "class function TTest.Read", 1) + "begin Result := Prop()[Missing]; end;", hint + "\nSyntax Error: Unknown name \"Missing\" [line: 7, column: 24]"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -434,7 +434,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	defer a.enterHelperMethodContext(decl, helperType, isStatic)()
 	// Registered after the context restore so it runs *before* it (LIFO):
 	// emitUnusedWarningsForCurrentScope bails out when currentFunction is nil.
-	defer a.emitUnusedWarningsForCurrentScope()
+	defer a.emitUnusedWarningsOnCompletion()
 
 	a.checkPreconditions(decl.PreConditions, decl.Name.Value)
 	a.analyzeRootBlock(decl.Body)

@@ -118,7 +118,11 @@ func (as *AssignmentStatement) String() string {
 //	Foo()
 type CallExpression struct {
 	// ParenPos retains the opening position of a direct empty call.
-	ParenPos  token.Position
+	ParenPos token.Position
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
 	Function  Expression
 	Arguments []Expression
 	BaseNode

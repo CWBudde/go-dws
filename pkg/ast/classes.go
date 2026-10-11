@@ -90,6 +90,10 @@ type ClassDecl struct {
 	IsDeprecated   bool
 	IsStaticClass  bool
 	IsExternal     bool
+	// AncestryTruncated marks an ancestry list cut short by a compiler stop.
+	// Its reached names are retained; the body and class completion checks
+	// were never reached.
+	AncestryTruncated bool
 }
 
 func (cd *ClassDecl) statementNode() {}
@@ -283,6 +287,10 @@ type NewExpression struct {
 	// form, in which case ClassName is used. When Operand is set, ClassName is nil.
 	Operand   Expression
 	Arguments []Expression
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
 	// TypeArgs holds the generic type arguments for `new TTest<Integer>(...)`.
 	// Nil for non-generic instantiations. When ClassName refers to a collected
 	// generic template, monomorphization rewrites ClassName to the mangled
@@ -398,11 +406,17 @@ type MethodCallExpression struct {
 	// ParenPos and FirstArgumentToken retain punctuation before type resolution.
 	ParenPos           token.Position
 	FirstArgumentToken token.Token
-	// Incomplete retains a call cut short while reading its arguments.
-	Incomplete bool
-	Object     Expression
-	Method     *Identifier
-	Arguments  []Expression
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
+	// StopDeferred marks a truncated call cut at a statement boundary right
+	// after its '(' (`obj.M(;`). Whether that is a compiler stop depends on
+	// what M resolves to, so the analyzer decides and reports it.
+	StopDeferred bool
+	Object       Expression
+	Method       *Identifier
+	Arguments    []Expression
 	BaseNode
 }
 
@@ -449,6 +463,10 @@ type InheritedExpression struct {
 	BaseNode
 	IsCall   bool
 	IsMember bool
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
 }
 
 func (ie *InheritedExpression) expressionNode() {}

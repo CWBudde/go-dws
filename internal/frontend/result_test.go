@@ -788,7 +788,7 @@ x := TTest.Hidden;
 }
 
 func TestCompile_RendersStructuredMemberAndHelperMissDiagnostics(t *testing.T) {
-	source := `
+	const decls = `
 type
    IThing = interface
    end;
@@ -805,25 +805,19 @@ var
    i : IThing;
    s : String;
    p : TPoint;
-   a : Integer := i.Missing;
-   b : String := s.Reverse;
-   c : Integer := p.Y;
 `
-
-	result := Compile(source, "member_helper_bucket.pas", semantic.HintsLevelPedantic)
-	got := result.DiagnosticStrings()
-	want := []string{
-		`Syntax Error: There is no accessible member with name "Missing" for type IThing [line: 18, column: 21]`,
-		`Syntax Error: There is no accessible member with name "Reverse" for type String [line: 19, column: 20]`,
-		`Syntax Error: There is no accessible member with name "Y" for type TPoint [line: 20, column: 21]`,
+	// Each miss is a compiler stop upstream (ReportNoMemberForType), so each
+	// one is compiled on its own.
+	tests := []struct{ access, want string }{
+		{`   a : Integer := i.Missing;`, `Syntax Error: There is no accessible member with name "Missing" for type IThing [line: 18, column: 21]`},
+		{`   b : String := s.Reverse;`, `Syntax Error: There is no accessible member with name "Reverse" for type String [line: 18, column: 20]`},
+		{`   c : Integer := p.Y;`, `Syntax Error: There is no accessible member with name "Y" for type TPoint [line: 18, column: 21]`},
 	}
-
-	if len(got) != len(want) {
-		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+	for _, tt := range tests {
+		result := Compile(decls+tt.access+"\n", "member_helper_bucket.pas", semantic.HintsLevelPedantic)
+		got := result.DiagnosticStrings()
+		if len(got) != 1 || got[0] != tt.want {
+			t.Fatalf("diagnostics = %q, want %q", got, tt.want)
 		}
 	}
 }
@@ -878,7 +872,8 @@ Foo();
 	result := Compile(source, "unknown_name.pas", semantic.HintsLevelPedantic)
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: Unknown name "Foo" [line: 2, column: 5]`,
+		// ReadName anchors the name, not the call's parenthesis (FailureScripts/except_error4).
+		`Syntax Error: Unknown name "Foo" [line: 2, column: 1]`,
 	}
 
 	if len(got) != len(want) {

@@ -27,7 +27,7 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		return a.analyzeImplicitIndexedCompatibilityRead(expr, call, nodes)
 	}
 	call, ok := root.(*ast.MethodCallExpression)
-	if !ok || call.Incomplete || len(call.Arguments) != 0 {
+	if !ok || call.Truncated || len(call.Arguments) != 0 {
 		return nil, false
 	}
 	class, prop, metaclass, ok := a.indexedCompatibilityReceiver(call)

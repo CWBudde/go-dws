@@ -207,6 +207,17 @@ Assigning to a constant or read-only binding reports
 
 ### Type-directed punctuation
 
+Completion hints are emitted only when their routine or block finishes. A semantic
+stop suppresses unused-local hints for interrupted work while preserving hints from
+earlier bodies that finish before a later-source stop.
+
+An interrupted `try` retains the handler types and statements reached before its
+syntax stop. A non-class handler type reports `Class reference expected` before
+`END expected`; class aliases such as `TAlias = Exception` are accepted. An
+interrupted class ancestry list likewise checks reached interface names before
+reporting its missing `)`. A reached semantic error at the same position as the
+parser stop appears first, with positions compared within the same source.
+
 Ordinary and routine-local record-typed constants require parenthesized field
 initializers. Missing `(`
 reports `"(" expected` at the first initializer token and stops compilation,
@@ -249,10 +260,9 @@ Value and grouped uses report `Expression expected` at the following token.
 Taking its address reports that child error before `unexpected "@"`; it does not
 create a callback. Constant recovery substitutes null and keeps the declared name
 available to later checks, including through unary/binary constant operators.
-Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
-recovery; reserved declaration-name validation remains in Phase 3. Other
-discarded qualified callee names and remaining reintroduced-property contexts remain
-open in Phase 2.1; completed-call address recovery remains in Phase 2.2. Default type/alias
+A nested malformed call (`PrintLn(debugbreak(;`) drops its casing hint; no fixture needs
+it, so it is parked in [known divergences](../decisions/known-divergences.md). Reserved declaration-name validation remains in Phase 3. The remaining
+reintroduced-property contexts are parked (Phase 2.4). Default type/alias
 validation is tracked separately in Phase 4.2.
 
 ### Default result namespace
@@ -263,8 +273,15 @@ and special functions do not become its members: `Default.Low(Integer)` and
 `Unknown name "Default.Length"`, anchored at the member token. Later argument
 and statement diagnostics are suppressed. A pedantic casing hint checks the
 qualifier (`default` versus `Default`); qualified member spelling has no separate
-casing hint. A malformed call whose parser recovery discards its callee still
-needs Phase 2.4's truncation carrier.
+casing hint. Truncated calls now keep their callee (see
+[compile stops](../architecture/compile-stops.md)). `Default.Low(;` still reports the parser's
+`Expression expected` at the `;` instead of upstream's `Unknown name` stop at the member; no
+fixture needs it (see [known divergences](../decisions/known-divergences.md)).
+
+On an enumeration type name, `TElement.Name(…)` stops with
+`There is no accessible method with name "Name" for type TElement` at the member token, before
+the arguments are read, unless the call is `ByName(…)` or an empty `()` pair. This also applies
+when the argument list is cut short (`TElement.low(;`).
 
 Qualified output bypasses routines and callback variables named `Print` or
 `PrintLn`. Compilation records the namespace receiver so a caller's local

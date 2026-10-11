@@ -209,3 +209,19 @@ func TestCompile_UnitConstantErrorKeepsItsPosition(t *testing.T) {
 		})
 	}
 }
+
+// TestCompile_UnitDirectivesCutAtStop pins that a unit's own directive
+// diagnostics end at its earliest compiler stop, as the main file's do: upstream
+// never reads a directive after the stop.
+func TestCompile_UnitDirectivesCutAtStop(t *testing.T) {
+	dir := t.TempDir()
+	source := "unit Stopped;\ninterface\nimplementation\n{$WARNING 'early'}\nvar I := Low;\n{$WARNING 'late'}\nend.\n"
+	if err := os.WriteFile(filepath.Join(dir, "Stopped.pas"), []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	res := Compile("uses Stopped;", filepath.Join(dir, "Main.pas"), semantic.HintsLevelDisabled)
+	got := strings.Join(res.DiagnosticStrings(), "\n")
+	if !strings.Contains(got, "early") || !strings.Contains(got, `"(" expected`) || strings.Contains(got, "late") {
+		t.Fatalf("diagnostics = %s", got)
+	}
+}
