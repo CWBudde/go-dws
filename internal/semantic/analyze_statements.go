@@ -1092,8 +1092,8 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 	defer func() {
 		a.inLoop = oldInLoop
 		a.loopDepth--
-		a.leaveLoop() // Check for infinite loop on exit
 	}()
+	defer a.leaveLoopOnCompletion() // Check for infinite loop on exit
 
 	// Check if loop is potentially exitable based on condition
 	// If condition is not constant, OR not boolean type, OR evaluates to false → mark as exitable
@@ -1143,8 +1143,8 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 	defer func() {
 		a.inLoop = oldInLoop
 		a.loopDepth--
-		a.leaveLoop() // Check for infinite loop on exit
 	}()
+	defer a.leaveLoopOnCompletion() // Check for infinite loop on exit
 
 	// Analyze body. One cut short by a compiler stop was never read to its end
 	// upstream, so the loop was never judged infinite.

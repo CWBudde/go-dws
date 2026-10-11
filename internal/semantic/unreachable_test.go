@@ -70,7 +70,9 @@ func TestUnreachableWarnings_ControlFlow(t *testing.T) {
 	}
 }
 
-func TestUnreachableWarnings_PrecedeTargetErrorsAndLoopWarning(t *testing.T) {
+// The unknown name is a compiler stop: upstream abandons the loop there and
+// never judges it infinite, so no loop warning follows.
+func TestUnreachableWarnings_PrecedeTargetStopWithoutLoopWarning(t *testing.T) {
 	a := parseAndAnalyze(t, "procedure Test; begin while True do begin continue; Missing; end; end;")
 	var relevant []string
 	for _, message := range a.Errors() {
@@ -78,7 +80,7 @@ func TestUnreachableWarnings_PrecedeTargetErrorsAndLoopWarning(t *testing.T) {
 			relevant = append(relevant, message)
 		}
 	}
-	if len(relevant) != 3 || !strings.Contains(relevant[0], "Unreachable code") || !strings.Contains(relevant[1], "Missing") || !strings.Contains(relevant[2], "Infinite loop") {
+	if len(relevant) != 2 || !strings.Contains(relevant[0], "Unreachable code") || !strings.Contains(relevant[1], "Missing") {
 		t.Fatalf("unexpected emission order: %v", relevant)
 	}
 }

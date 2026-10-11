@@ -52,6 +52,9 @@ func TestCompile_SemanticStopCompletionHints(t *testing.T) {
 		{"method", "type TTest = class\nprocedure P;\nbegin\nvar unused: Integer;\nMissing;\nPrintLn(unused);\nend;\nend;", []string{`Syntax Error: Unknown name "Missing" [line: 5, column: 1]`}},
 		{"lambda", "var f := lambda(): Integer\nbegin\nvar unused: Integer;\nMissing;\nResult := unused;\nend;", []string{`Syntax Error: Unknown name "Missing" [line: 4, column: 1]`}},
 		{"completed earlier routine", "procedure P;\nbegin\nvar unused: Integer;\nend;\nMissing;", []string{`Hint: Variable "unused" declared but not used [line: 3, column: 5]`, `Syntax Error: Unknown name "Missing" [line: 5, column: 1]`}},
+		{"while loop", "while True do\nbegin\nvar unused: Integer;\nMissing;\nend;", []string{`Syntax Error: Unknown name "Missing" [line: 4, column: 1]`}},
+		{"repeat loop", "repeat\nMissing;\nuntil False;", []string{`Syntax Error: Unknown name "Missing" [line: 2, column: 1]`}},
+		{"completed earlier loop", "while True do\nPrintLn(1);\nMissing;", []string{`Warning: Infinite loop [line: 1, column: 1]`, `Syntax Error: Unknown name "Missing" [line: 3, column: 1]`}},
 		{"completed earlier block", "procedure P;\nbegin\nbegin\nvar unused: Integer;\nend;\nMissing;\nend;", []string{`Hint: Variable "unused" declared but not used [line: 4, column: 5]`, `Syntax Error: Unknown name "Missing" [line: 6, column: 1]`}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -1467,6 +1467,16 @@ func (a *Analyzer) markLoopExitable(level LoopExitability) {
 	}
 }
 
+// leaveLoopOnCompletion must be deferred directly. A compiler stop abandons
+// the loop before its end, so upstream never judges it infinite; rethrow the
+// original panic and let the stop boundary restore the loop stacks.
+func (a *Analyzer) leaveLoopOnCompletion() {
+	if interrupted := recover(); interrupted != nil {
+		panic(interrupted)
+	}
+	a.leaveLoop()
+}
+
 // leaveLoop pops the loop from the exitability stack and emits warning if infinite
 func (a *Analyzer) leaveLoop() {
 	if len(a.loopExitabilityStack) == 0 {
