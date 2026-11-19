@@ -91,6 +91,76 @@ func TestCallSitePos_NameToken(t *testing.T) {
 	}
 }
 
+// TestRaiseSitePos pins `raise <expr>`: a call-like operand is reported at the
+// callee's name token, anything else just past the expression. Parentheses are
+// not part of DWScript's own AST, so `raise (E.Create)` has to behave exactly
+// like `raise E.Create`.
+func TestRaiseSitePos(t *testing.T) {
+	newExpr := func() ast.Expression {
+		return &ast.NewExpression{
+			ClassName:      identAt("Exception", 3, 10),
+			ConstructorPos: pos(3, 20),
+		}
+	}
+	grouped := func(inner ast.Expression, endLine, endColumn int) ast.Expression {
+		return &ast.GroupedExpression{
+			Expression: inner,
+			BaseNode: ast.BaseNode{
+				Token:  token.Token{Type: token.LPAREN, Literal: "(", Pos: pos(3, 9)},
+				EndPos: pos(endLine, endColumn),
+			},
+		}
+	}
+
+	tests := []struct {
+		expr ast.Expression
+		name string
+		want token.Position
+	}{
+		{
+			name: "constructor call reports the constructor name",
+			expr: newExpr(),
+			want: pos(3, 20),
+		},
+		{
+			name: "parenthesised constructor call still reports the constructor name",
+			expr: grouped(newExpr(), 3, 34),
+			want: pos(3, 20),
+		},
+		{
+			name: "doubly parenthesised constructor call is unwrapped as well",
+			expr: grouped(grouped(newExpr(), 3, 34), 3, 35),
+			want: pos(3, 20),
+		},
+		{
+			name: "plain object reference reports just past the expression",
+			expr: &ast.Identifier{
+				BaseNode: ast.BaseNode{
+					Token:  token.Token{Type: token.IDENT, Literal: "e", Pos: pos(5, 10)},
+					EndPos: pos(5, 11),
+				},
+				Value: "e",
+			},
+			want: pos(5, 11),
+		},
+		{
+			name: "parenthesised non-call keeps the End of the whole group",
+			expr: grouped(identAt("e", 5, 11), 5, 13),
+			want: pos(5, 13),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := raiseSitePos(tt.expr)
+			if got.Line != tt.want.Line || got.Column != tt.want.Column {
+				t.Fatalf("raiseSitePos = [line: %d, column: %d], want [line: %d, column: %d]",
+					got.Line, got.Column, tt.want.Line, tt.want.Column)
+			}
+		})
+	}
+}
+
 // TestCallSitePosOf_Nil guards the frame-push helper against a missing current
 // node.
 func TestCallSitePosOf_Nil(t *testing.T) {
