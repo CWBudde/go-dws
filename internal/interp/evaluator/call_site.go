@@ -61,12 +61,28 @@ func callSitePosOf(node ast.Node) *token.Position {
 // raise site is the callee's name token. For any other expression (a plain
 // object reference, for instance) DWScript reports the parser position just past
 // the expression, which End() models.
+//
+// Parentheses are not part of DWScript's own AST, so `raise (EFoo.Create(...))`
+// has to behave exactly like the unparenthesised spelling; the grouping is
+// unwrapped before the call-like check. A grouped non-call still falls back to
+// the End() of the *whole* grouped expression.
 func raiseSitePos(expr ast.Expression) token.Position {
-	switch expr.(type) {
+	switch unwrapGrouped(expr).(type) {
 	case *ast.NewExpression, *ast.CallExpression, *ast.MethodCallExpression:
-		return callSitePos(expr)
+		return callSitePos(unwrapGrouped(expr))
 	}
 	return expr.End()
+}
+
+// unwrapGrouped strips any number of parenthesised wrappers from expr.
+func unwrapGrouped(expr ast.Expression) ast.Expression {
+	for {
+		grouped, ok := expr.(*ast.GroupedExpression)
+		if !ok || grouped.Expression == nil {
+			return expr
+		}
+		expr = grouped.Expression
+	}
 }
 
 // qualifiedRoutineName renders the name DWScript puts on a stack frame: a method
